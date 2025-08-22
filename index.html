@@ -47,6 +47,7 @@
             <div class="info-display">
                 <span>検定員: <b id="current-judge-display">--</b></span><br>
                 <span>種別: <b id="current-discipline-display">--</b></span> |
+                <span>級: <b id="current-level-display">--</b></span> |
                 <span>種目: <b id="current-event-display">--</b></span>
             </div>
         </div>
@@ -171,18 +172,12 @@
             allEvents = data.events || {};
             setupJudgeScreen(data.availableJudges || []);
             setLoading(false);
-            // ページロード時のみリセットを実行
-            if (document.querySelector('.screen.active').id === 'judge-screen' && !currentJudge) {
-                 resetApp();
+            if (!currentJudge) {
+                resetApp();
             }
         }
 
-        // ▼▼▼ 修正箇所2：新しいリフレッシュ用関数を追加 ▼▼▼
-        /**
-         * 「リストを更新」ボタン専用の処理
-         */
         function refreshJudgesList() {
-            // もし検定員を選択中の場合は、まず解放する
             if (currentJudge) {
                 setLoading(true);
                 fetch('/api/releaseJudge', {
@@ -191,17 +186,14 @@
                     body: JSON.stringify({ judgeName: currentJudge, sessionId: sessionId })
                 })
                 .then(() => {
-                    // 解放が成功したら、状態をリセットして再初期化
                     currentJudge = '';
                     initializeApp();
                 })
                 .catch(onApiError);
             } else {
-                // 誰も選択していない場合は、そのまま初期化
                 initializeApp();
             }
         }
-        // ▲▲▲ 修正完了 ▲▲▲
 
         // === 画面表示ロジック ===
         function setupJudgeScreen(availableJudges) { const keypad = document.getElementById('judge-keypad'); keypad.innerHTML = ''; if (availableJudges.length > 0) { availableJudges.forEach(name => createButton(keypad, name, () => selectJudge(name))); setInstruction('judge-instruction', 'ご自身の名前を選択してください'); } else { setInstruction('judge-instruction', '現在、利用可能な検定員がいません。'); } }
@@ -249,32 +241,63 @@
         function onSubmitSuccess(result) { document.getElementById('completed-bib').textContent = String(result.bib).padStart(3, '0'); document.getElementById('completed-score').textContent = result.score; setHeaderText('送信完了しました'); showScreen('complete-screen'); }
 
         // === ナビゲーションとリセット ===
-        function nextSkier() { currentScore = ''; currentBib = ''; confirmedScore = 0; clearInput(); clearBibInput(); document.getElementById('submit-status').innerHTML = ''; setHeaderText('滑走者の得点を入力してください'); showScreen('score-screen'); }
+        // ▼▼▼ 修正箇所1 ▼▼▼
+        function nextSkier() {
+            currentScore = '';
+            currentBib = '';
+            confirmedScore = 0;
+            clearInput();
+            clearBibInput();
+            document.getElementById('submit-status').innerHTML = '';
+            setHeaderText('滑走者の得点を入力してください'); // 級の表示を削除
+            showScreen('score-screen');
+        }
         function resetApp() { currentJudge = ''; selectedDiscipline = ''; selectedLevel = ''; selectedEvent = ''; updateInfoDisplay(); setHeaderText('検定員を選択してください'); showScreen('judge-screen'); }
 
         function changeJudge() {
             showConfirmDialog('現在の採点を中断し、検定員選択に戻りますか？', () => {
-                setLoading(true);
                 fetch('/api/releaseJudge', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ judgeName: currentJudge, sessionId: sessionId })
-                })
-                .then(() => {
-                    currentJudge = '';
-                    initializeApp();
-                })
-                .catch(onApiError);
+                });
+                resetApp();
+                initializeApp();
             });
         }
-        function changeEvent() { showConfirmDialog('現在の採点を中断し、種目選択に戻りますか？', () => { setHeaderText('種別を選択してください'); showScreen('discipline-screen'); }); }
+        function changeEvent() {
+            showConfirmDialog('現在の採点を中断し、種目選択に戻りますか？', () => {
+                selectedDiscipline = '';
+                selectedLevel = '';
+                selectedEvent = '';
+                updateInfoDisplay();
+                setHeaderText('種別を選択してください');
+                showScreen('discipline-screen');
+            });
+        }
 
-        function executeConfirm() { showScreen(previousScreen); if (typeof onConfirmAction === 'function') { onConfirmAction(); } onConfirmAction = null; }
+        function executeConfirm() {
+            if (typeof onConfirmAction === 'function') {
+                onConfirmAction();
+            }
+            onConfirmAction = null;
+        }
 
         function goBackToDisciplineSelect() { setHeaderText('種別を選択してください'); showScreen('discipline-screen'); }
         function goBackToLevelSelect() { setHeaderText('級を選択してください'); showScreen('level-screen'); }
-        function goBack() { setHeaderText('滑走者の得点を入力してください'); showScreen('score-screen'); }
-        function editEntry() { currentScore = String(confirmedScore); document.getElementById('score-display').textContent = currentScore; setHeaderText('滑走者の得点を入力してください'); showScreen('score-screen'); }
+
+        // ▼▼▼ 修正箇所2 ▼▼▼
+        function goBack() {
+            setHeaderText('滑走者の得点を入力してください'); // 級の表示を削除
+            showScreen('score-screen');
+        }
+        // ▼▼▼ 修正箇所3 ▼▼▼
+        function editEntry() {
+            currentScore = String(confirmedScore);
+            document.getElementById('score-display').textContent = currentScore;
+            setHeaderText('滑走者の得点を入力してください'); // 級の表示を削除
+            showScreen('score-screen');
+        }
 
         function showConfirmDialog(message, onConfirm) {
             previousScreen = document.querySelector('.screen.active').id;
@@ -293,7 +316,12 @@
         function setHeaderText(text) { document.getElementById('header-main-text').textContent = text; }
         function setInstruction(id, text) { document.getElementById(id).textContent = text; }
         function setLoading(isLoading) { document.getElementById('loading-overlay').classList.toggle('active', isLoading); }
-        function updateInfoDisplay() { document.getElementById('current-judge-display').textContent = currentJudge || '--'; document.getElementById('current-discipline-display').textContent = selectedDiscipline || '--'; document.getElementById('current-event-display').textContent = selectedEvent || '--'; }
+        function updateInfoDisplay() {
+            document.getElementById('current-judge-display').textContent = currentJudge || '--';
+            document.getElementById('current-discipline-display').textContent = selectedDiscipline || '--';
+            document.getElementById('current-level-display').textContent = selectedLevel || '--';
+            document.getElementById('current-event-display').textContent = selectedEvent || '--';
+        }
         function onApiError(error) { alert('サーバーとの通信エラー: ' + error.message); setLoading(false); }
         function onSubmitError(error) { document.getElementById('submit-status').innerHTML = `<div class="error">送信エラー: ${error.message}<br><button class="nav-btn" onclick="submitEntry()">再試行</button></div>`; }
 
