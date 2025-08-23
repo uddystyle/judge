@@ -23,6 +23,21 @@ document.addEventListener("DOMContentLoaded", () => {
       Math.random().toString(36).substring(2, 9);
     sessionStorage.setItem("sessionId", sessionId);
   }
+
+  if (navigator.share) {
+    // 共有が使える場合：エクスポートボタンを隠し、共有ボタンを表示
+    document.getElementById("export-button-judge").style.display = "none";
+    document.getElementById("export-button-complete").style.display = "none";
+    document.getElementById("share-button-judge").style.display = "block";
+    document.getElementById("share-button-complete").style.display = "block";
+  } else {
+    // 共有が使えない場合（PCなど）：共有ボタンを隠し、エクスポートボタンを表示
+    document.getElementById("share-button-judge").style.display = "none";
+    document.getElementById("share-button-complete").style.display = "none";
+    document.getElementById("export-button-judge").style.display = "block";
+    document.getElementById("export-button-complete").style.display = "block";
+  }
+
   initializeApp();
 });
 
@@ -366,38 +381,77 @@ function cancelConfirm() {
 }
 
 // === その他ヘルパー関数 ===
-function exportAllResults() {
+/**
+ * 全ての採点結果をExcelファイルとしてエクスポートまたは共有する
+ */
+async function handleExportOrShare() {
   setLoading(true);
-  setHeaderText("データをエクスポート中...");
-  fetch("/api/getResults")
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.error) throw new Error(data.error);
-      if (!data.results || data.results.length === 0) {
-        alert("エクスポートするデータがありません。");
-        return;
+  setHeaderText("データを準備中...");
+
+  try {
+    const response = await fetch("/api/getResults");
+    const data = await response.json();
+
+    if (data.error) throw new Error(data.error);
+    if (!data.results || data.results.length === 0) {
+      alert("エクスポート/共有するデータがありません。");
+      return;
+    }
+
+    const exportData = data.results.map((item) => ({
+      採点日時: item.created_at
+        ? new Date(item.created_at).toLocaleString("ja-JP")
+        : "",
+      ゼッケン: item.bib,
+      得点: item.score,
+      種別: item.discipline,
+      種目: item.event_name,
+      検定員: item.judge_name,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "採点結果");
+
+    const fileName = "SAJ検定_全採点結果.xlsx";
+
+    // ▼▼▼ 修正箇所 ▼▼▼
+    // 共有機能が使えるかで処理を分岐
+    if (navigator.share) {
+      const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([wbout], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const file = new File([blob], fileName, { type: blob.type });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: "SAJ検定結果",
+          text: "採点結果のExcelファイルです。",
+          files: [file],
+        });
+      } else {
+        // ファイル共有がサポートされていない場合はダウンロードにフォールバック
+        XLSX.writeFile(workbook, fileName);
       }
-      const exportData = data.results.map((item) => ({
-        採点日時: item.created_at
-          ? new Date(item.created_at).toLocaleString("ja-JP")
-          : "",
-        ゼッケン: item.bib,
-        得点: item.score,
-        種別: item.discipline,
-        種目: item.event_name,
-        検定員: item.judge_name,
-      }));
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "採点結果");
-      XLSX.writeFile(workbook, "SAJ検定_全採点結果.xlsx");
-    })
-    .catch(onApiError)
-    .finally(() => {
-      setLoading(false);
+    } else {
+      // PCなど、共有機能がない場合は直接ダウンロード
+      XLSX.writeFile(workbook, fileName);
+    }
+    // ▲▲▲ 修正完了 ▲▲▲
+  } catch (error) {
+    onApiError(error);
+  } finally {
+    setLoading(false);
+    const activeScreen = document.querySelector(".screen.active").id;
+    if (activeScreen === "complete-screen") {
       setHeaderText("送信完了しました");
-    });
+    } else if (activeScreen === "judge-screen") {
+      setHeaderText("検定員を選択してください");
+    }
+  }
 }
+
 function createButton(parent, text, onClick) {
   const btn = document.createElement("button");
   btn.className = "key select-item";

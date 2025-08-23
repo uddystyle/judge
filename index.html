@@ -25,7 +25,8 @@
             <div class="nav-buttons">
                 <button class="nav-btn primary" onclick="hardReset()">リストを更新</button>
                 <button class="nav-btn danger" onclick="clearAllData()">データをクリア</button>
-                <button class="nav-btn" onclick="exportAllResults()">全データをエクスポート</button>
+                <button class="nav-btn" id="export-button-judge" onclick="handleExportOrShare()">全データをエクスポート</button>
+                <button class="nav-btn" id="share-button-judge" onclick="handleExportOrShare()">結果を共有</button>
             </div>
         </div>
 
@@ -95,6 +96,8 @@
             </div>
             <div class="nav-buttons">
                 <button class="nav-btn primary" onclick="nextSkier()">次の滑走者</button>
+                <button class="nav-btn" id="export-button-complete" onclick="handleExportOrShare()">結果をエクスポート</button>
+                <button class="nav-btn" id="share-button-complete" onclick="handleExportOrShare()">結果を共有</button>
             </div>
         </div>
 
