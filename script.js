@@ -415,8 +415,6 @@ async function handleExportOrShare() {
 
     const fileName = "SAJ検定_全採点結果.xlsx";
 
-    // ▼▼▼ 修正箇所 ▼▼▼
-    // 共有機能が使えるかで処理を分岐
     if (navigator.share) {
       const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
       const blob = new Blob([wbout], {
@@ -431,16 +429,18 @@ async function handleExportOrShare() {
           files: [file],
         });
       } else {
-        // ファイル共有がサポートされていない場合はダウンロードにフォールバック
         XLSX.writeFile(workbook, fileName);
       }
     } else {
-      // PCなど、共有機能がない場合は直接ダウンロード
       XLSX.writeFile(workbook, fileName);
     }
-    // ▲▲▲ 修正完了 ▲▲▲
   } catch (error) {
-    onApiError(error);
+    // ユーザーによるキャンセル操作（AbortError）の場合は、エラーとして表示しない
+    if (error.name === "AbortError") {
+      console.log("共有はユーザーによってキャンセルされました。");
+    } else {
+      onApiError(error);
+    }
   } finally {
     setLoading(false);
     const activeScreen = document.querySelector(".screen.active").id;
