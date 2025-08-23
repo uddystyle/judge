@@ -84,7 +84,7 @@ body {
     width: 100%;
     height: 50px;
     font-size: 17px;
-    font-weight: 400;
+    font-weight: 600;
     text-align: center;
     border: none;
     cursor: pointer;
@@ -165,7 +165,6 @@ body {
     color: #333;
 }
 
-/* ▼▼▼ 修正箇所 ▼▼▼ */
 .numeric-keypad {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -186,7 +185,6 @@ body {
     transition: all 0.2s;
     color: #333;
 }
-/* ▲▲▲ 修正完了 ▲▲▲ */
 
 .numeric-key:hover {
     background: #e0e0e0;
