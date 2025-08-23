@@ -24,18 +24,28 @@ document.addEventListener("DOMContentLoaded", () => {
     sessionStorage.setItem("sessionId", sessionId);
   }
 
-  if (navigator.share) {
+  // Web Share APIが使えるかチェックしてボタンの表示を切り替える
+  const canShare = !!navigator.share;
+
+  const exportButtonIds = ["export-button-judge", "export-button-complete"];
+  const shareButtonIds = ["share-button-judge", "share-button-complete"];
+
+  if (canShare) {
     // 共有が使える場合：エクスポートボタンを隠し、共有ボタンを表示
-    document.getElementById("export-button-judge").style.display = "none";
-    document.getElementById("export-button-complete").style.display = "none";
-    document.getElementById("share-button-judge").style.display = "block";
-    document.getElementById("share-button-complete").style.display = "block";
+    exportButtonIds.forEach(
+      (id) => (document.getElementById(id).style.display = "none")
+    );
+    shareButtonIds.forEach(
+      (id) => (document.getElementById(id).style.display = "block")
+    );
   } else {
     // 共有が使えない場合（PCなど）：共有ボタンを隠し、エクスポートボタンを表示
-    document.getElementById("share-button-judge").style.display = "none";
-    document.getElementById("share-button-complete").style.display = "none";
-    document.getElementById("export-button-judge").style.display = "block";
-    document.getElementById("export-button-complete").style.display = "block";
+    shareButtonIds.forEach(
+      (id) => (document.getElementById(id).style.display = "none")
+    );
+    exportButtonIds.forEach(
+      (id) => (document.getElementById(id).style.display = "block")
+    );
   }
 
   initializeApp();
@@ -112,11 +122,10 @@ function clearAllData() {
     "全ての検定員の「使用中」状態をリセットし、アプリを初期化します。よろしいですか？",
     () => {
       setLoading(true);
-      fetch("/api/clearCache") // キャッシュクリアAPIを呼び出す
+      fetch("/api/clearCache")
         .then((response) => {
           if (!response.ok)
             throw new Error("キャッシュのクリアに失敗しました。");
-          // 成功したらハードリセット（リロード）
           hardReset();
         })
         .catch(onApiError);
@@ -305,6 +314,7 @@ function confirmBib() {
   setHeaderText("採点内容を確認してください");
   showScreen("submit-screen");
 }
+
 function submitEntry() {
   document.getElementById("submit-status").innerHTML =
     '<div class="status"><div class="loading"></div> 送信中...</div>';
@@ -316,6 +326,7 @@ function submitEntry() {
       score: confirmedScore,
       judge: currentJudge,
       discipline: selectedDiscipline,
+      level: selectedLevel,
       event: selectedEvent,
     }),
   })
@@ -380,10 +391,6 @@ function cancelConfirm() {
   showScreen(previousScreen);
 }
 
-// === その他ヘルパー関数 ===
-/**
- * 全ての採点結果をExcelファイルとしてエクスポートまたは共有する
- */
 async function handleExportOrShare() {
   setLoading(true);
   setHeaderText("データを準備中...");
@@ -405,6 +412,7 @@ async function handleExportOrShare() {
       ゼッケン: item.bib,
       得点: item.score,
       種別: item.discipline,
+      級: item.level,
       種目: item.event_name,
       検定員: item.judge_name,
     }));
@@ -435,7 +443,6 @@ async function handleExportOrShare() {
       XLSX.writeFile(workbook, fileName);
     }
   } catch (error) {
-    // ユーザーによるキャンセル操作（AbortError）の場合は、エラーとして表示しない
     if (error.name === "AbortError") {
       console.log("共有はユーザーによってキャンセルされました。");
     } else {
@@ -451,7 +458,6 @@ async function handleExportOrShare() {
     }
   }
 }
-
 function createButton(parent, text, onClick) {
   const btn = document.createElement("button");
   btn.className = "key select-item";
