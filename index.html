@@ -141,6 +141,15 @@
              background-color: #0056b3;
         }
 
+        .nav-btn.danger {
+            background-color: var(--ios-red);
+            color: white;
+            font-weight: 600;
+        }
+        .nav-btn.danger:active {
+             background-color: #ff0000;
+        }
+
         .status, .error { padding: 15px; border-radius: 8px; margin: 20px auto; text-align: center; font-size: 15px; max-width: 320px; }
         .status { background: #eef7ee; border: 1px solid var(--ios-green); color: #2e6b3d; }
         .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(0,0,0,0.1); border-top-color: var(--primary-text); border-radius: 50%; animation: spin 1s linear infinite; }
@@ -241,6 +250,7 @@
             <div class="list-keypad" id="judge-keypad"></div>
             <div class="nav-buttons">
                 <button class="nav-btn primary" onclick="hardReset()">リストを更新</button>
+                <button class="nav-btn danger" onclick="clearAllData()">データをクリア</button>
                 <button class="nav-btn" onclick="exportAllResults()">全データをエクスポート</button>
             </div>
         </div>
@@ -405,6 +415,19 @@
                 console.error('解放処理中にエラー:', error);
                 sessionStorage.removeItem('currentJudge');
                 location.reload();
+            });
+        }
+
+        function clearAllData() {
+            showConfirmDialog('全ての検定員の「使用中」状態をリセットし、アプリを初期化します。よろしいですか？', () => {
+                setLoading(true);
+                fetch('/api/clearCache') // キャッシュクリアAPIを呼び出す
+                    .then(response => {
+                        if (!response.ok) throw new Error('キャッシュのクリアに失敗しました。');
+                        // 成功したらハードリセット（リロード）
+                        hardReset();
+                    })
+                    .catch(onApiError);
             });
         }
 
