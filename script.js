@@ -478,7 +478,6 @@ async function handleExportOrShare() {
       return;
     }
     const exportData = results.map((item) => ({
-      検定名: currentSession.name,
       採点日時: new Date(item.created_at).toLocaleString("ja-JP"),
       ゼッケン: item.bib,
       得点: item.score,
@@ -486,6 +485,7 @@ async function handleExportOrShare() {
       級: item.level,
       種目: item.event_name,
       検定員: item.judge_name,
+      検定名: currentSession.name,
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
