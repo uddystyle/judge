@@ -332,7 +332,7 @@ function confirmScore() {
   if (score < 0 || score > 99)
     return alert("得点は0-99の範囲で入力してください");
   confirmedScore = score;
-  document.getElementById("confirmed-score").textContent = score;
+  //   document.getElementById("confirmed-score").textContent = score;
   setHeaderText("ゼッケン番号を入力してください");
   showScreen("bib-screen");
 }
