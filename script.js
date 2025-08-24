@@ -134,7 +134,7 @@ async function loadDashboard() {
         button.innerHTML = `<div class="session-name">${session.name}</div>
           <div class="join-code-wrapper">
               <span class="join-code">コード: ${session.join_code}</span>
-              <div class="copy-btn" onclick="copyJoinCode(event, '${session.join_code}')">copy</div>
+              <div class="copy-btn" onclick="copyJoinCode(event, '${session.join_code}')">COPY</div>
           </div>`;
         button.onclick = () => selectSession(session);
         sessionList.appendChild(button);
@@ -544,9 +544,9 @@ function copyJoinCode(event, code) {
     .writeText(code)
     .then(() => {
       const copyButton = event.target;
-      copyButton.textContent = "copied!";
+      copyButton.textContent = "COPIED!";
       setTimeout(() => {
-        copyButton.textContent = "copy";
+        copyButton.textContent = "COPY";
       }, 1500);
     })
     .catch((err) => {

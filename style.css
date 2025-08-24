@@ -67,8 +67,8 @@ body {
     border-radius: 6px;
 }
 .copy-btn {
-    background-color: var(--keypad-bg);
-    color: var(--primary-text);
+    background-color: var(--light-gray);
+    color: var(--secondary-text);
     border: none;
     border-radius: 8px;
     padding: 6px 10px;
