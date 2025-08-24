@@ -50,6 +50,7 @@
             <div class="nav-buttons">
                 <button class="nav-btn primary" onclick="showScreen('create-session-screen')">新しい検定を作成</button>
                 <button class="nav-btn" onclick="showScreen('join-session-screen')">コードで参加</button>
+                <button class="nav-btn" onclick="showAccountScreen()">アカウント設定</button>
                 <button class="nav-btn danger" onclick="handleLogout()">ログアウト</button>
             </div>
         </div>
@@ -151,6 +152,33 @@
             <div class="nav-buttons">
                 <button class="nav-btn primary" onclick="executeConfirm()">はい</button>
                 <button class="nav-btn" onclick="cancelConfirm()">いいえ</button>
+            </div>
+        </div>
+
+        <div class="screen" id="account-screen">
+            <div class="instruction">アカウント設定</div>
+
+            <div class="form-container">
+                <label for="account-name" style="text-align: left; font-size: 15px; font-weight: 500; margin-bottom: -8px;">氏名</label>
+                <input type="text" id="account-name" placeholder="氏名" autocomplete="name">
+                <div class="nav-buttons" style="margin-top: 0;">
+                    <button class="nav-btn primary" onclick="handleUpdateName()">名前を更新</button>
+                </div>
+            </div>
+
+            <hr style="width: 100%; border: none; border-top: 1px solid var(--separator-gray); margin: 24px 0;">
+
+            <div class="form-container">
+                <label for="account-password" style="text-align: left; font-size: 15px; font-weight: 500; margin-bottom: -8px;">新しいパスワード</label>
+                <input type="password" id="account-password" placeholder="新しいパスワード (6文字以上)" autocomplete="new-password">
+                <input type="password" id="account-password-confirm" placeholder="新しいパスワード (確認)" autocomplete="new-password">
+                <div class="nav-buttons" style="margin-top: 0;">
+                    <button class="nav-btn primary" onclick="handleUpdatePassword()">パスワードを更新</button>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="showScreen('dashboard-screen')">ダッシュボードに戻る</button>
             </div>
         </div>
 

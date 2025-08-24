@@ -554,3 +554,97 @@ function copyJoinCode(event, code) {
       alert("コピーに失敗しました。");
     });
 }
+
+// === アカウント設定関連 ===
+
+/**
+ * アカウント設定画面を表示し、現在のユーザー名をフォームに設定する
+ */
+async function showAccountScreen() {
+  try {
+    setLoading(true);
+    // 現在のユーザーのプロフィール情報を取得
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", currentUser.id)
+      .single();
+
+    if (error) throw error;
+
+    // フォームに現在の名前を表示
+    document.getElementById("account-name").value = profile.full_name || "";
+
+    // パスワード入力欄はクリアしておく
+    document.getElementById("account-password").value = "";
+    document.getElementById("account-password-confirm").value = "";
+
+    setHeaderText("アカウント設定");
+    showScreen("account-screen");
+  } catch (error) {
+    alert("ユーザー情報の取得に失敗しました: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * ユーザー名を更新する
+ */
+async function handleUpdateName() {
+  const newName = document.getElementById("account-name").value;
+  if (!newName.trim()) return alert("氏名を入力してください。");
+
+  setLoading(true);
+  try {
+    // 'profiles'テーブルのfull_nameを更新
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: newName })
+      .eq("id", currentUser.id);
+
+    if (error) throw error;
+
+    // ヘッダーに表示されている名前も更新
+    document.getElementById("user-info").textContent = newName;
+
+    alert("名前を更新しました。");
+  } catch (error) {
+    alert("名前の更新に失敗しました: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * パスワードを更新する
+ */
+async function handleUpdatePassword() {
+  const newPassword = document.getElementById("account-password").value;
+  const confirmPassword = document.getElementById(
+    "account-password-confirm"
+  ).value;
+
+  if (newPassword.length < 6) {
+    return alert("パスワードは6文字以上で入力してください。");
+  }
+  if (newPassword !== confirmPassword) {
+    return alert("パスワードが一致しません。");
+  }
+
+  setLoading(true);
+  try {
+    // Supabaseの認証機能を使ってパスワードを更新
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+
+    alert("パスワードを更新しました。");
+    // 更新が成功したら入力欄をクリア
+    document.getElementById("account-password").value = "";
+    document.getElementById("account-password-confirm").value = "";
+  } catch (error) {
+    alert("パスワードの更新に失敗しました: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
