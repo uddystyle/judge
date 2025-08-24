@@ -79,7 +79,20 @@ body {
 .copy-btn:active {
     background-color: #c8c8cd;
 }
-
+.details-btn {
+    background-color: var(--ios-blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-left: 4px; /* copyボタンとの間隔 */
+}
+.details-btn:active {
+    background-color: #0056b3;
+}
 .container {
     width: 100%;
     max-width: 420px;

@@ -192,6 +192,46 @@
             </div>
         </div>
 
+        <div class="screen" id="session-details-screen">
+            <div class="instruction" id="session-details-title">検定の詳細</div>
+
+            <div class="form-container">
+                <label for="session-details-name" style="text-align: left; font-size: 15px; font-weight: 500; margin-bottom: -8px;">検定名</label>
+                <input type="text" id="session-details-name" placeholder="検定名">
+                <div class="nav-buttons" style="margin-top: 0;">
+                    <button class="nav-btn primary" onclick="handleUpdateSessionName()">名前を更新</button>
+                </div>
+            </div>
+
+            <hr style="width: 100%; border: none; border-top: 1px solid var(--separator-gray); margin: 24px 0;">
+
+            <div>
+                <h3 style="text-align: left; font-size: 17px; margin-bottom: 12px;">参加中の検定員</h3>
+                <div id="session-participants-list" style="background: white; border-radius: 12px; padding: 16px; text-align: left; min-height: 50px;">
+                    </div>
+            </div>
+
+            <hr style="width: 100%; border: none; border-top: 1px solid var(--separator-gray); margin: 24px 0;">
+
+            <div class="nav-buttons">
+                <button class="nav-btn danger" onclick="showDeleteSessionConfirm()">この検定を削除</button>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="nav-btn" onclick="goBackToDashboard()">検定選択に戻る</button>
+            </div>
+        </div>
+        <div class="screen" id="delete-session-confirm-screen">
+            <div class="instruction">本当にこの検定を削除しますか？</div>
+            <div style="margin-bottom: 24px; color: var(--secondary-text);">
+                この操作は取り消せません。この検定に関連する全ての採点データが完全に削除されます。
+            </div>
+            <div class="nav-buttons">
+                <button class="nav-btn danger" onclick="handleDeleteSession()">はい、削除します</button>
+                <button class="nav-btn" onclick="cancelConfirm()">いいえ、キャンセルします</button>
+            </div>
+        </div>
+
         <div class="loading-overlay" id="loading-overlay"><div class="loading"></div></div>
     </div>
     <script src="/script.js"></script>

@@ -134,7 +134,6 @@ async function handleLogout() {
 }
 
 // === ダッシュボードとセッション管理 ===
-// [修正] Supabase RPCから /api/getMySessions の呼び出しへ変更
 async function loadDashboard() {
   setHeaderText("検定を選択");
   showScreen("dashboard-screen");
@@ -157,11 +156,17 @@ async function loadDashboard() {
       mySessions.forEach((session) => {
         const button = document.createElement("button");
         button.className = "key select-item";
+        // ボタンのHTMLに詳細ボタンを追加
         button.innerHTML = `<div class="session-name">${session.name}</div>
-          <div class="join-code-wrapper">
-              <span class="join-code">コード: ${session.join_code}</span>
-              <div class="copy-btn" onclick="copyJoinCode(event, '${session.join_code}')">COPY</div>
-          </div>`;
+            <div class="join-code-wrapper">
+                <span class="join-code">コード: ${session.join_code}</span>
+                <div class="copy-btn" onclick="copyJoinCode(event, '${
+                  session.join_code
+                }')">copy</div>
+                <div class="details-btn" onclick="showSessionDetails(event, JSON.parse(decodeURIComponent('${encodeURIComponent(
+                  JSON.stringify(session)
+                )}')))">詳細</div>
+            </div>`;
         button.onclick = () => selectSession(session);
         sessionList.appendChild(button);
       });
@@ -731,6 +736,139 @@ async function handleDeleteAccount() {
     showScreen("login-screen");
   } catch (error) {
     alert("エラー: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// === 検定詳細関連 ===
+
+/**
+ * 検定詳細画面を表示する
+ * @param {Event} event - クリックイベント
+ * @param {object} session - 対象のセッション情報
+ */
+async function showSessionDetails(event, session) {
+  event.stopPropagation(); // 親要素（検定選択ボタン）のクリックイベントを抑制
+  setLoading(true);
+  currentSession = session; // 現在のセッションとして設定
+
+  try {
+    const response = await fetch(
+      `/api/getSessionDetails?sessionId=${session.id}`
+    );
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+
+    // フォームに検定名をセット
+    document.getElementById(
+      "session-details-title"
+    ).textContent = `${data.session_name} の詳細`;
+    document.getElementById("session-details-name").value = data.session_name;
+
+    // 参加者リストを表示
+    const listEl = document.getElementById("session-participants-list");
+    listEl.innerHTML = "";
+    if (data.participants && data.participants.length > 0) {
+      const ul = document.createElement("ul");
+      ul.style.cssText = "list-style: none; padding-left: 0; margin: 0;";
+      data.participants.forEach((p) => {
+        const li = document.createElement("li");
+        li.textContent = p.full_name;
+        li.style.padding = "4px 0";
+        ul.appendChild(li);
+      });
+      listEl.appendChild(ul);
+    } else {
+      listEl.textContent = "参加者はいません。";
+    }
+
+    setHeaderText("検定の詳細");
+    showScreen("session-details-screen");
+  } catch (error) {
+    alert("詳細の読み込みに失敗しました: " + error.message);
+    goBackToDashboard(); // エラー時はダッシュボードに戻る
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * 検定名を更新する
+ */
+async function handleUpdateSessionName() {
+  const newName = document.getElementById("session-details-name").value;
+  if (!newName.trim()) return alert("検定名を入力してください。");
+  if (!currentSession) return alert("対象の検定が選択されていません。");
+
+  setLoading(true);
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("ログインしていません。");
+
+    const response = await fetch("/api/updateSessionName", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: currentSession.id,
+        newName: newName,
+        userToken: session.access_token,
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+
+    alert("検定名を更新しました。");
+    document.getElementById(
+      "session-details-title"
+    ).textContent = `${newName} の詳細`;
+    await loadDashboard(); // ダッシュボードのリストも更新
+  } catch (error) {
+    alert("更新に失敗しました: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * 検定削除の確認画面を表示する
+ */
+function showDeleteSessionConfirm() {
+  previousScreen = "session-details-screen";
+  showScreen("delete-session-confirm-screen");
+}
+
+/**
+ * 検定を削除する
+ */
+async function handleDeleteSession() {
+  if (!currentSession) return alert("対象の検定が選択されていません。");
+  setLoading(true);
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("ログインしていません。");
+
+    const response = await fetch("/api/deleteSession", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: currentSession.id,
+        userToken: session.access_token,
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+
+    alert("検定を削除しました。");
+    await loadDashboard();
+  } catch (error) {
+    alert("削除に失敗しました: " + error.message);
   } finally {
     setLoading(false);
   }
