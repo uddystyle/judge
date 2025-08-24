@@ -478,6 +478,7 @@ async function handleExportOrShare() {
       return;
     }
     const exportData = results.map((item) => ({
+      検定名: currentSession.name,
       採点日時: new Date(item.created_at).toLocaleString("ja-JP"),
       ゼッケン: item.bib,
       得点: item.score,
