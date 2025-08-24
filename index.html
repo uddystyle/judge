@@ -178,7 +178,19 @@
             </div>
 
             <div class="nav-buttons">
+                <button class="nav-btn danger" onclick="showDeleteConfirm()">アカウントを削除</button>
                 <button class="nav-btn" onclick="showScreen('dashboard-screen')">ダッシュボードに戻る</button>
+            </div>
+        </div>
+
+        <div class="screen" id="delete-confirm-screen">
+            <div class="instruction">本当にアカウントを削除しますか？</div>
+            <div style="margin-bottom: 24px; color: var(--secondary-text);">
+                この操作は取り消せません。作成した検定や採点データを含む、すべてのアカウント情報が完全に削除されます。
+            </div>
+            <div class="nav-buttons">
+                <button class="nav-btn danger" onclick="handleDeleteAccount()">はい、削除します</button>
+                <button class="nav-btn" onclick="cancelConfirm()">いいえ、キャンセルします</button>
             </div>
         </div>
 

@@ -648,3 +648,57 @@ async function handleUpdatePassword() {
     setLoading(false);
   }
 }
+
+// === アカウント削除関連 ===
+
+/**
+ * アカウント削除の確認画面を表示する
+ */
+function showDeleteConfirm() {
+  // 現在アクティブな画面を記憶しておく（キャンセル時に戻るため）
+  previousScreen = document.querySelector(".screen.active").id;
+  showScreen("delete-confirm-screen");
+}
+
+/**
+ * アカウントを削除する処理を実行する
+ */
+async function handleDeleteAccount() {
+  setLoading(true);
+  try {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      throw new Error("ログインしていません。");
+    }
+
+    // バックエンドの削除APIを呼び出す
+    const response = await fetch("/api/deleteUser", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userToken: session.access_token }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || "アカウントの削除に失敗しました。");
+    }
+
+    alert("アカウントが正常に削除されました。");
+
+    // ログアウト処理を行い、ログイン画面に遷移する
+    await supabase.auth.signOut();
+    currentUser = null;
+    currentSession = null;
+    document.getElementById("user-info").textContent = "ログインしていません";
+    document.getElementById("session-info").textContent = "検定未選択";
+    setHeaderText("ようこそ");
+    showScreen("login-screen");
+  } catch (error) {
+    alert("エラー: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
