@@ -22,12 +22,15 @@
         <div class="screen active" id="login-screen">
             <div class="instruction">ログイン</div>
             <div class="form-container">
-                <input type="email" id="login-email" placeholder="メールアドレス" autocomplete="email">
-                <input type="password" id="login-password" placeholder="パスワード" autocomplete="current-password">
+                <input type="email" id="login-email" placeholder="メールアドレス" autocomplete="email" oninput="clearLoginError()">
+                <input type="password" id="login-password" placeholder="パスワード" autocomplete="current-password" oninput="clearLoginError()">
+
                 <div class="nav-buttons">
                     <button class="nav-btn primary" onclick="handleLogin()">ログイン</button>
-                    <button class="nav-btn" onclick="showScreen('signup-screen')">新規登録はこちら</button>
+                    <button class="nav-btn" onclick="showScreen('signup-screen'); clearLoginError();">新規登録はこちら</button>
                 </div>
+
+                <div id="login-error-message"></div>
             </div>
         </div>
 

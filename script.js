@@ -76,20 +76,41 @@ async function handleSignup() {
   }
 }
 
-// [修正] Supabase直接認証から /api/login の呼び出しへ変更
+// [修正] エラーメッセージを画面に表示するように変更
 async function handleLogin() {
   const email = document.getElementById("login-email").value;
   const password = document.getElementById("login-password").value;
+  const errorMessageDiv = document.getElementById("login-error-message");
+
+  // 以前のエラーメッセージをクリア
+  errorMessageDiv.innerHTML = "";
   setLoading(true);
+
   try {
+    // 入力が空の場合のチェック
+    if (!email || !password) {
+      throw new Error("メールアドレスとパスワードを入力してください。");
+    }
+
+    // Supabaseでログイン試行
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) throw error;
+
+    if (error) {
+      // Supabaseからのエラーを分かりやすい日本語に変換
+      if (error.message === "Invalid login credentials") {
+        throw new Error("メールアドレスまたはパスワードが正しくありません。");
+      }
+      // その他の予期せぬエラー
+      throw error;
+    }
+
     await setUserState(data.session);
   } catch (error) {
-    alert("ログインエラー: " + error.message);
+    // エラーメッセージを画面に表示
+    errorMessageDiv.innerHTML = `<div class="error">${error.message}</div>`;
   } finally {
     setLoading(false);
   }
@@ -382,7 +403,7 @@ function nextSkier() {
   showScreen("score-screen");
 }
 
-// === ナビゲーションとヘルパー関数 (ここは変更なし) ===
+// === ナビゲーションとヘルパー関数 ===
 function changeEvent() {
   showConfirmDialog("現在の採点を中断し、種目選択に戻りますか？", () => {
     selectedDiscipline = "";
@@ -553,6 +574,9 @@ function copyJoinCode(event, code) {
       console.error("コピーに失敗しました:", err);
       alert("コピーに失敗しました。");
     });
+}
+function clearLoginError() {
+  document.getElementById("login-error-message").innerHTML = "";
 }
 
 // === アカウント設定関連 ===
