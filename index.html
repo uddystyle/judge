@@ -48,7 +48,6 @@
         </div>
 
         <div class="screen" id="dashboard-screen">
-            <div class="instruction">検定を選択</div>
             <div class="list-keypad" id="session-list"></div>
             <div class="nav-buttons">
                 <button class="nav-btn primary" onclick="showScreen('create-session-screen')">新しい検定を作成</button>
@@ -81,19 +80,16 @@
         </div>
 
         <div class="screen" id="discipline-screen">
-            <div class="instruction">「種別」を選択してください</div>
             <div class="list-keypad" id="discipline-keypad"></div>
             <div class="nav-buttons"><button class="nav-btn" onclick="goBackToDashboard()">検定選択に戻る</button></div>
         </div>
 
         <div class="screen" id="level-screen">
-            <div class="instruction">検定する「級」を選択してください</div>
             <div class="list-keypad" id="level-keypad"></div>
             <div class="nav-buttons"><button class="nav-btn" onclick="goBackToDisciplineSelect()">種別の選択に戻る</button></div>
         </div>
 
         <div class="screen" id="event-screen">
-            <div class="instruction">検定する「種目」を選択してください</div>
             <div class="list-keypad" id="event-keypad"></div>
             <div class="nav-buttons"><button class="nav-btn" onclick="goBackToLevelSelect()">級の選択に戻る</button></div>
         </div>
