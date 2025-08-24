@@ -6,34 +6,80 @@
     <title>検定集計システム</title>
     <link rel="stylesheet" href="/style.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <p id="header-main-text">初期化中...</p>
+            <p id="header-main-text">ようこそ</p>
             <div class="info-display">
-                <span>検定員: <b id="current-judge-display">--</b></span>
-                <span>種別: <b id="current-discipline-display">--</b></span>
-                <span>級: <b id="current-level-display">--</b></span>
-                <span>種目: <b id="current-event-display">--</b></span>
+                <span id="user-info">ログインしていません</span> |
+                <span id="session-info">検定未選択</span> |
+                <span id="selection-info">選択中: ー</span>
             </div>
         </div>
 
-        <div class="screen active" id="judge-screen">
-            <div class="instruction" id="judge-instruction">利用可能な検定員を読み込んでいます...</div>
-            <div class="list-keypad" id="judge-keypad"></div>
+        <div class="screen active" id="login-screen">
+            <div class="instruction">ログイン</div>
+            <div class="form-container">
+                <input type="email" id="login-email" placeholder="メールアドレス" autocomplete="email">
+                <input type="password" id="login-password" placeholder="パスワード" autocomplete="current-password">
+                <div class="nav-buttons">
+                    <button class="nav-btn primary" onclick="handleLogin()">ログイン</button>
+                    <button class="nav-btn" onclick="showScreen('signup-screen')">新規登録はこちら</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="screen" id="signup-screen">
+            <div class="instruction">新規アカウント登録</div>
+            <div class="form-container">
+                <input type="text" id="signup-name" placeholder="氏名" autocomplete="name">
+                <input type="email" id="signup-email" placeholder="メールアドレス" autocomplete="email">
+                <input type="password" id="signup-password" placeholder="パスワード (6文字以上)" autocomplete="new-password">
+                <div class="nav-buttons">
+                    <button class="nav-btn primary" onclick="handleSignup()">登録する</button>
+                    <button class="nav-btn" onclick="showScreen('login-screen')">ログイン画面に戻る</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="screen" id="dashboard-screen">
+            <div class="instruction">検定を選択</div>
+            <div class="list-keypad" id="session-list"></div>
             <div class="nav-buttons">
-                <button class="nav-btn primary" onclick="hardReset()">リストを更新</button>
-                <button class="nav-btn danger" onclick="clearAllData()">データをクリア</button>
-                <button class="nav-btn" id="export-button-judge" onclick="handleExportOrShare()">全データをエクスポート</button>
-                <button class="nav-btn" id="share-button-judge" onclick="handleExportOrShare()">結果を共有</button>
+                <button class="nav-btn primary" onclick="showScreen('create-session-screen')">新しい検定を作成</button>
+                <button class="nav-btn" onclick="showScreen('join-session-screen')">コードで参加</button>
+                <button class="nav-btn danger" onclick="handleLogout()">ログアウト</button>
+            </div>
+        </div>
+
+        <div class="screen" id="create-session-screen">
+            <div class="instruction">新しい検定を作成</div>
+            <div class="form-container">
+                <input type="text" id="session-name-input" placeholder="検定名 (例: 2025冬期検定)">
+                <div class="nav-buttons">
+                    <button class="nav-btn primary" onclick="handleCreateSession()">作成</button>
+                    <button class="nav-btn" onclick="showScreen('dashboard-screen')">戻る</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="screen" id="join-session-screen">
+            <div class="instruction">参加コードで合流</div>
+            <div class="form-container">
+                <input type="text" id="join-code-input" placeholder="6桁の参加コード" maxlength="6" style="text-transform: uppercase;">
+                <div class="nav-buttons">
+                    <button class="nav-btn primary" onclick="handleJoinSession()">参加</button>
+                    <button class="nav-btn" onclick="showScreen('dashboard-screen')">戻る</button>
+                </div>
             </div>
         </div>
 
         <div class="screen" id="discipline-screen">
             <div class="instruction">「種別」を選択してください</div>
             <div class="list-keypad" id="discipline-keypad"></div>
-            <div class="nav-buttons"><button class="nav-btn" onclick="changeJudge()">検定員を変更</button></div>
+            <div class="nav-buttons"><button class="nav-btn" onclick="goBackToDashboard()">検定選択に戻る</button></div>
         </div>
 
         <div class="screen" id="level-screen">
@@ -100,7 +146,6 @@
                 <button class="nav-btn" id="share-button-complete" onclick="handleExportOrShare()">結果を共有</button>
             </div>
         </div>
-
         <div class="screen" id="confirm-screen">
             <div class="instruction" id="confirm-message"></div>
             <div class="nav-buttons">
@@ -111,7 +156,6 @@
 
         <div class="loading-overlay" id="loading-overlay"><div class="loading"></div></div>
     </div>
-
     <script src="/script.js"></script>
 </body>
 </html>

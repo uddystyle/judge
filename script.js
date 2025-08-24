@@ -1,185 +1,223 @@
 // === グローバル変数 ===
+let currentUser = null;
+let currentSession = null;
+let allTestEvents = {};
 let currentScore = "",
   currentBib = "",
   confirmedScore = 0;
-let currentJudge = "",
-  selectedDiscipline = "",
+let selectedDiscipline = "",
   selectedLevel = "",
   selectedEvent = "";
-let allEvents = {};
 let onConfirmAction = null;
 let previousScreen = "";
-let sessionId = "";
 
-// === 初期化とデータ取得 ===
-document.addEventListener("DOMContentLoaded", () => {
-  currentJudge = sessionStorage.getItem("currentJudge") || "";
-  sessionId = sessionStorage.getItem("sessionId");
-  if (!sessionId) {
-    sessionId =
-      "session-" +
-      Date.now() +
-      "-" +
-      Math.random().toString(36).substring(2, 9);
-    sessionStorage.setItem("sessionId", sessionId);
-  }
+// 実際のSupabaseのURLとanonキーに置き換えてください
+const SUPABASE_URL = "https://kbxlukbvhlxponcentyp.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtieGx1a2J2aGx4cG9uY2VudHlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3NjkzNDcsImV4cCI6MjA3MTM0NTM0N30.5MaOYEUaE4VPQHhDPW1MiJTYUsEQ4mR03Efri-iUHk4";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // Web Share APIが使えるかチェックしてボタンの表示を切り替える
-  const canShare = !!navigator.share;
-
-  const exportButtonIds = ["export-button-judge", "export-button-complete"];
-  const shareButtonIds = ["share-button-judge", "share-button-complete"];
-
-  if (canShare) {
-    // 共有が使える場合：エクスポートボタンを隠し、共有ボタンを表示
-    exportButtonIds.forEach(
-      (id) => (document.getElementById(id).style.display = "none")
-    );
-    shareButtonIds.forEach(
-      (id) => (document.getElementById(id).style.display = "block")
-    );
+// === 初期化と認証チェック ===
+document.addEventListener("DOMContentLoaded", async () => {
+  // ログイン状態をチェック
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session) {
+    await setUserState(session);
   } else {
-    // 共有が使えない場合（PCなど）：共有ボタンを隠し、エクスポートボタンを表示
-    shareButtonIds.forEach(
-      (id) => (document.getElementById(id).style.display = "none")
-    );
-    exportButtonIds.forEach(
-      (id) => (document.getElementById(id).style.display = "block")
-    );
+    setHeaderText("ようこそ");
+    showScreen("login-screen");
   }
 
-  initializeApp();
-});
-
-window.addEventListener("beforeunload", () => {
-  if (currentJudge) {
-    const data = { judgeName: currentJudge, sessionId: sessionId };
-    navigator.sendBeacon("/api/releaseJudge", JSON.stringify(data));
+  // 共有ボタンの表示制御
+  const shareButtons = document.querySelectorAll('[id^="share-button-"]');
+  if (navigator.share) {
+    shareButtons.forEach((btn) => (btn.style.display = "block"));
+  } else {
+    shareButtons.forEach((btn) => (btn.style.display = "none"));
   }
 });
 
-function initializeApp() {
-  setLoading(true);
-  setHeaderText("データを読み込み中...");
-  fetch(
-    `/api/getInitialData?sessionId=${sessionId}&currentUserJudge=${encodeURIComponent(
-      currentJudge
-    )}`
-  )
-    .then((response) => response.json())
-    .then((data) => {
-      if (data.error) throw new Error(data.error);
-      onInitialDataLoaded(data);
-    })
-    .catch(onApiError);
+async function setUserState(session) {
+  currentUser = session.user;
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", currentUser.id)
+    .single();
+  document.getElementById("user-info").textContent =
+    profile?.full_name || currentUser.email;
+  await loadDashboard();
 }
 
-function onInitialDataLoaded(data) {
-  allEvents = data.events || {};
-  setupJudgeScreen(data.availableJudges || []);
+// === 認証関連 ===
+async function handleSignup() {
+  const fullName = document.getElementById("signup-name").value;
+  const email = document.getElementById("signup-email").value;
+  const password = document.getElementById("signup-password").value;
+  setLoading(true);
+  try {
+    const response = await fetch("/api/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fullName, email, password }),
+    });
+    const result = await response.json();
+    if (result.error) throw new Error(result.error);
+
+    alert(
+      "確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。\n（Supabase側でメール確認を無効にしている場合は、すぐにログインできます）"
+    );
+    showScreen("login-screen");
+  } catch (error) {
+    alert("登録エラー: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function handleLogin() {
+  const email = document.getElementById("login-email").value;
+  const password = document.getElementById("login-password").value;
+  setLoading(true);
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) throw error;
+    await setUserState(data.session);
+  } catch (error) {
+    alert("ログインエラー: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function handleLogout() {
+  setLoading(true);
+  await supabase.auth.signOut();
+  currentUser = null;
+  currentSession = null;
+  document.getElementById("user-info").textContent = "ログインしていません";
+  document.getElementById("session-info").textContent = "検定未選択";
+  setHeaderText("ようこそ");
+  showScreen("login-screen");
   setLoading(false);
-  if (!currentJudge) {
-    resetApp();
-  } else {
-    updateInfoDisplay();
+}
+
+// === ダッシュボードとセッション管理 ===
+async function loadDashboard() {
+  setHeaderText("検定を選択");
+  showScreen("dashboard-screen");
+  setLoading(true);
+  try {
+    // SupabaseのDB関数を呼び出す
+    // この 'get_my_sessions' は次のステップで作成します
+    const { data, error } = await supabase.rpc("get_my_sessions");
+    if (error) throw error;
+
+    const sessionList = document.getElementById("session-list");
+    sessionList.innerHTML = ""; // リストをクリア
+    if (data && data.length > 0) {
+      data.forEach((session) => {
+        const button = document.createElement("button");
+        button.className = "key select-item";
+        button.innerHTML = `<div class="session-name">${session.name}</div>
+          <div class="join-code-wrapper">
+              <span class="join-code">コード: ${session.join_code}</span>
+              <div class="copy-btn" onclick="copyJoinCode(event, '${session.join_code}')">copy</div>
+          </div>`;
+        button.onclick = () => selectSession(session);
+        sessionList.appendChild(button);
+      });
+    } else {
+      sessionList.innerHTML =
+        '<p style="color: var(--secondary-text);">参加中の検定はありません。</p>';
+    }
+  } catch (error) {
+    alert("検定の読み込みエラー: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function handleCreateSession() {
+  const sessionName = document.getElementById("session-name-input").value;
+  if (!sessionName) return alert("検定名を入力してください。");
+  setLoading(true);
+  try {
+    // Supabase Edge Functionを呼び出す
+    // この 'create-session' は次のステップで作成します
+    const { data, error } = await supabase.functions.invoke("create-session", {
+      body: { sessionName },
+    });
+    if (error) throw error;
+    await loadDashboard();
+  } catch (error) {
+    alert("検定作成エラー: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function handleJoinSession() {
+  const joinCode = document
+    .getElementById("join-code-input")
+    .value.toUpperCase();
+  if (!joinCode) return alert("参加コードを入力してください。");
+  setLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from("sessions")
+      .select("id")
+      .eq("join_code", joinCode)
+      .single();
+    if (error || !data) throw new Error("無効な参加コードです。");
+    const { error: joinError } = await supabase
+      .from("session_participants")
+      .insert({ session_id: data.id, user_id: currentUser.id });
+    if (joinError && joinError.code !== "23505") throw joinError; // 重複以外のエラーは投げる
+    await loadDashboard();
+  } catch (error) {
+    alert("検定参加エラー: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function selectSession(session) {
+  currentSession = session;
+  document.getElementById("session-info").textContent = currentSession.name;
+  setLoading(true);
+  try {
+    const { data, error } = await supabase.from("events").select("*"); // 種目データを取得
+    if (error) throw error;
+
+    allTestEvents = {};
+    data.forEach((e) => {
+      if (!allTestEvents[e.discipline]) allTestEvents[e.discipline] = {};
+      if (!allTestEvents[e.discipline][e.level])
+        allTestEvents[e.discipline][e.level] = [];
+      allTestEvents[e.discipline][e.level].push(e.name);
+    });
+
     setupDisciplineScreen();
     setHeaderText("種別を選択してください");
     showScreen("discipline-screen");
+  } catch (error) {
+    alert("種目データの読み込みエラー: " + error.message);
+  } finally {
+    setLoading(false);
   }
 }
 
-// === ナビゲーションとリセット ===
-function hardReset() {
-  setLoading(true);
-  const judgeToRelease = currentJudge;
-
-  if (!judgeToRelease) {
-    location.reload();
-    return;
-  }
-
-  fetch("/api/releaseJudge", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ judgeName: judgeToRelease, sessionId: sessionId }),
-  })
-    .then((response) => {
-      if (!response.ok) {
-        console.error("検定員の解放に失敗しましたが、リロードを試みます。");
-      }
-      sessionStorage.removeItem("currentJudge");
-      location.reload();
-    })
-    .catch((error) => {
-      console.error("解放処理中にエラー:", error);
-      sessionStorage.removeItem("currentJudge");
-      location.reload();
-    });
-}
-
-function clearAllData() {
-  showConfirmDialog(
-    "全ての検定員の「使用中」状態をリセットし、アプリを初期化します。よろしいですか？",
-    () => {
-      setLoading(true);
-      fetch("/api/clearCache")
-        .then((response) => {
-          if (!response.ok)
-            throw new Error("キャッシュのクリアに失敗しました。");
-          hardReset();
-        })
-        .catch(onApiError);
-    }
-  );
-}
-
-function refreshJudgesList() {
-  hardReset();
-}
-
-function changeJudge() {
-  showConfirmDialog("現在の採点を中断し、検定員選択に戻りますか？", hardReset);
-}
-
-function nextSkier() {
-  currentScore = "";
-  currentBib = "";
-  confirmedScore = 0;
-  clearInput();
-  clearBibInput();
-  document.getElementById("submit-status").innerHTML = "";
-  setHeaderText("滑走者の得点を入力してください");
-  showScreen("score-screen");
-}
-
-function resetApp() {
-  currentJudge = "";
-  sessionStorage.removeItem("currentJudge");
-  selectedDiscipline = "";
-  selectedLevel = "";
-  selectedEvent = "";
-  updateInfoDisplay();
-  setHeaderText("検定員を選択してください");
-  showScreen("judge-screen");
-}
-
-// === 画面表示ロジック ===
-function setupJudgeScreen(availableJudges) {
-  const keypad = document.getElementById("judge-keypad");
-  keypad.innerHTML = "";
-  if (availableJudges.length > 0) {
-    availableJudges.forEach((name) =>
-      createButton(keypad, name, () => selectJudge(name))
-    );
-    setInstruction("judge-instruction", "ご自身の名前を選択してください");
-  } else {
-    setInstruction("judge-instruction", "現在、利用可能な検定員がいません。");
-  }
-}
+// === 採点フローの関数群 ===
 function setupDisciplineScreen() {
   const keypad = document.getElementById("discipline-keypad");
   keypad.innerHTML = "";
-  const disciplines = Object.keys(allEvents);
+  const disciplines = Object.keys(allTestEvents);
   disciplines.forEach((d) =>
     createButton(keypad, d, () => selectDiscipline(d))
   );
@@ -187,7 +225,7 @@ function setupDisciplineScreen() {
 function setupLevelScreen(discipline) {
   const keypad = document.getElementById("level-keypad");
   keypad.innerHTML = "";
-  const levels = Object.keys(allEvents[discipline] || {}).sort(
+  const levels = Object.keys(allTestEvents[discipline] || {}).sort(
     (a, b) =>
       parseInt(
         a.replace(/[０-９]/g, (s) =>
@@ -205,36 +243,10 @@ function setupLevelScreen(discipline) {
 function setupEventScreen(discipline, level) {
   const keypad = document.getElementById("event-keypad");
   keypad.innerHTML = "";
-  const events = allEvents[discipline]?.[level] || [];
+  const events = allTestEvents[discipline]?.[level] || [];
   events.forEach((e) => createButton(keypad, e, () => selectEvent(e)));
 }
 
-// === 選択処理と画面遷移 ===
-function selectJudge(judgeName) {
-  setLoading(true);
-  fetch("/api/selectJudge", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ judgeName: judgeName, sessionId: sessionId }),
-  })
-    .then((response) => response.json())
-    .then((result) => {
-      if (result.error) throw new Error(result.error);
-      if (result.status === "success") {
-        currentJudge = result.judgeName;
-        sessionStorage.setItem("currentJudge", currentJudge);
-        updateInfoDisplay();
-        setupDisciplineScreen();
-        setHeaderText("種別を選択してください");
-        showScreen("discipline-screen");
-      } else {
-        alert(result.message);
-        initializeApp();
-      }
-    })
-    .catch(onApiError)
-    .finally(() => setLoading(false));
-}
 function selectDiscipline(discipline) {
   selectedDiscipline = discipline;
   updateInfoDisplay();
@@ -255,7 +267,6 @@ function selectEvent(event) {
   nextSkier();
 }
 
-// === 入力と送信プロセス ===
 function inputNumber(num) {
   if (currentScore.length < 2) {
     currentScore =
@@ -315,27 +326,24 @@ function confirmBib() {
   showScreen("submit-screen");
 }
 
-function submitEntry() {
+async function submitEntry() {
   document.getElementById("submit-status").innerHTML =
     '<div class="status"><div class="loading"></div> 送信中...</div>';
-  fetch("/api/submitScore", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  try {
+    const { error } = await supabase.from("results").insert({
+      session_id: currentSession.id,
       bib: parseInt(currentBib),
       score: confirmedScore,
-      judge: currentJudge,
+      judge_name: document.getElementById("user-info").textContent, // ログイン中のユーザー名
       discipline: selectedDiscipline,
       level: selectedLevel,
-      event: selectedEvent,
-    }),
-  })
-    .then((response) => response.json())
-    .then((result) => {
-      if (result.error) throw new Error(result.error);
-      onSubmitSuccess(result);
-    })
-    .catch(onSubmitError);
+      event_name: selectedEvent,
+    });
+    if (error) throw error;
+    onSubmitSuccess({ bib: currentBib, score: confirmedScore });
+  } catch (error) {
+    onSubmitError(error);
+  }
 }
 function onSubmitSuccess(result) {
   document.getElementById("completed-bib").textContent = String(
@@ -345,8 +353,18 @@ function onSubmitSuccess(result) {
   setHeaderText("送信完了しました");
   showScreen("complete-screen");
 }
+function nextSkier() {
+  currentScore = "";
+  currentBib = "";
+  confirmedScore = 0;
+  clearInput();
+  clearBibInput();
+  document.getElementById("submit-status").innerHTML = "";
+  setHeaderText("滑走者の得点を入力してください");
+  showScreen("score-screen");
+}
 
-// === 確認ダイアログ関連 ===
+// === ナビゲーションとヘルパー関数 ===
 function changeEvent() {
   showConfirmDialog("現在の採点を中断し、種目選択に戻りますか？", () => {
     selectedDiscipline = "";
@@ -363,11 +381,25 @@ function executeConfirm() {
   }
   onConfirmAction = null;
 }
+function goBackToDashboard() {
+  selectedEvent = "";
+  updateInfoDisplay();
+  setHeaderText("検定を選択");
+  showScreen("dashboard-screen");
+}
+
 function goBackToDisciplineSelect() {
+  selectedDiscipline = "";
+  selectedLevel = "";
+  selectedEvent = "";
+  updateInfoDisplay();
   setHeaderText("種別を選択してください");
   showScreen("discipline-screen");
 }
 function goBackToLevelSelect() {
+  selectedLevel = "";
+  selectedEvent = "";
+  updateInfoDisplay();
   setHeaderText("級を選択してください");
   showScreen("level-screen");
 }
@@ -390,25 +422,24 @@ function showConfirmDialog(message, onConfirm) {
 function cancelConfirm() {
   showScreen(previousScreen);
 }
-
 async function handleExportOrShare() {
   setLoading(true);
   setHeaderText("データを準備中...");
-
   try {
-    const response = await fetch("/api/getResults");
-    const data = await response.json();
-
-    if (data.error) throw new Error(data.error);
-    if (!data.results || data.results.length === 0) {
+    const { data, error } = await supabase
+      .from("results")
+      .select(
+        "created_at, bib, score, discipline, level, event_name, judge_name"
+      )
+      .eq("session_id", currentSession.id)
+      .order("created_at");
+    if (error) throw error;
+    if (!data || data.length === 0) {
       alert("エクスポート/共有するデータがありません。");
       return;
     }
-
-    const exportData = data.results.map((item) => ({
-      採点日時: item.created_at
-        ? new Date(item.created_at).toLocaleString("ja-JP")
-        : "",
+    const exportData = data.map((item) => ({
+      採点日時: new Date(item.created_at).toLocaleString("ja-JP"),
       ゼッケン: item.bib,
       得点: item.score,
       種別: item.discipline,
@@ -416,23 +447,19 @@ async function handleExportOrShare() {
       種目: item.event_name,
       検定員: item.judge_name,
     }));
-
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "採点結果");
-
-    const fileName = "SAJ検定_全採点結果.xlsx";
-
+    const fileName = `${currentSession.name}_採点結果.xlsx`;
     if (navigator.share) {
       const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
       const blob = new Blob([wbout], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const file = new File([blob], fileName, { type: blob.type });
-
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
-          title: "SAJ検定結果",
+          title: currentSession.name,
           text: "採点結果のExcelファイルです。",
           files: [file],
         });
@@ -443,25 +470,17 @@ async function handleExportOrShare() {
       XLSX.writeFile(workbook, fileName);
     }
   } catch (error) {
-    if (error.name === "AbortError") {
-      console.log("共有はユーザーによってキャンセルされました。");
-    } else {
-      onApiError(error);
-    }
+    if (error.name !== "AbortError") onApiError(error);
   } finally {
     setLoading(false);
     const activeScreen = document.querySelector(".screen.active").id;
-    if (activeScreen === "complete-screen") {
-      setHeaderText("送信完了しました");
-    } else if (activeScreen === "judge-screen") {
-      setHeaderText("検定員を選択してください");
-    }
+    if (activeScreen === "complete-screen") setHeaderText("送信完了しました");
   }
 }
 function createButton(parent, text, onClick) {
   const btn = document.createElement("button");
   btn.className = "key select-item";
-  btn.textContent = text;
+  btn.innerHTML = text;
   btn.onclick = onClick;
   parent.appendChild(btn);
 }
@@ -474,30 +493,55 @@ function showScreen(screenId) {
 function setHeaderText(text) {
   document.getElementById("header-main-text").textContent = text;
 }
-function setInstruction(id, text) {
-  document.getElementById(id).textContent = text;
-}
 function setLoading(isLoading) {
   document
     .getElementById("loading-overlay")
     .classList.toggle("active", isLoading);
 }
 function updateInfoDisplay() {
-  document.getElementById("current-judge-display").textContent =
-    currentJudge || "--";
-  document.getElementById("current-discipline-display").textContent =
-    selectedDiscipline || "--";
-  document.getElementById("current-level-display").textContent =
-    selectedLevel || "--";
-  document.getElementById("current-event-display").textContent =
-    selectedEvent || "--";
+  document.getElementById("user-info").textContent =
+    currentUser?.email || "ログインしていません";
+  document.getElementById("session-info").textContent =
+    currentSession?.name || "未選択";
+  const selEl = document.getElementById("selection-info");
+  if (selEl) selEl.textContent = getSelectionLabel();
+}
+function getSelectionLabel() {
+  const parts = [];
+  if (selectedDiscipline) parts.push(selectedDiscipline);
+  if (selectedLevel) parts.push(selectedLevel);
+  if (selectedEvent) parts.push(selectedEvent);
+  return parts.length ? `選択中: ${parts.join(" / ")}` : "選択中: ー";
 }
 function onApiError(error) {
-  alert("サーバーとの通信エラー: " + error.message);
+  alert("エラー: " + error.message);
   setLoading(false);
 }
 function onSubmitError(error) {
   document.getElementById(
     "submit-status"
   ).innerHTML = `<div class="error">送信エラー: ${error.message}<br><button class="nav-btn" onclick="submitEntry()">再試行</button></div>`;
+}
+/**
+ * 参加コードをクリップボードにコピーする
+ * @param {Event} event - クリックイベント
+ * @param {string} code - コピーするコード
+ */
+function copyJoinCode(event, code) {
+  // ボタン全体がクリックされるのを防ぐ
+  event.stopPropagation();
+
+  navigator.clipboard
+    .writeText(code)
+    .then(() => {
+      const copyButton = event.target;
+      copyButton.textContent = "copied";
+      setTimeout(() => {
+        copyButton.textContent = "copy";
+      }, 1500); // 1.5秒後に元に戻す
+    })
+    .catch((err) => {
+      console.error("コピーに失敗しました:", err);
+      alert("コピーに失敗しました。");
+    });
 }
