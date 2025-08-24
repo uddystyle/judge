@@ -11,7 +11,7 @@ let selectedDiscipline = "",
 let onConfirmAction = null;
 let previousScreen = "";
 
-// 実際のSupabaseのURLとanonキーに置き換えてください
+// Supabaseクライアントを初期化
 const SUPABASE_URL = "https://kbxlukbvhlxponcentyp.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtieGx1a2J2aGx4cG9uY2VudHlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3NjkzNDcsImV4cCI6MjA3MTM0NTM0N30.5MaOYEUaE4VPQHhDPW1MiJTYUsEQ4mR03Efri-iUHk4";
@@ -19,7 +19,6 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // === 初期化と認証チェック ===
 document.addEventListener("DOMContentLoaded", async () => {
-  // ログイン状態をチェック
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -30,7 +29,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     showScreen("login-screen");
   }
 
-  // 共有ボタンの表示制御
   const shareButtons = document.querySelectorAll('[id^="share-button-"]');
   if (navigator.share) {
     shareButtons.forEach((btn) => (btn.style.display = "block"));
@@ -41,6 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 async function setUserState(session) {
   currentUser = session.user;
+  // プロフィール情報を取得してユーザー名を表示
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name")
@@ -52,6 +51,7 @@ async function setUserState(session) {
 }
 
 // === 認証関連 ===
+// [修正] /api/signup を呼び出す (これは元のままでOK)
 async function handleSignup() {
   const fullName = document.getElementById("signup-name").value;
   const email = document.getElementById("signup-email").value;
@@ -64,10 +64,9 @@ async function handleSignup() {
       body: JSON.stringify({ fullName, email, password }),
     });
     const result = await response.json();
-    if (result.error) throw new Error(result.error);
-
+    if (!response.ok) throw new Error(result.error);
     alert(
-      "確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。\n（Supabase側でメール確認を無効にしている場合は、すぐにログインできます）"
+      "確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。"
     );
     showScreen("login-screen");
   } catch (error) {
@@ -77,6 +76,7 @@ async function handleSignup() {
   }
 }
 
+// [修正] Supabase直接認証から /api/login の呼び出しへ変更
 async function handleLogin() {
   const email = document.getElementById("login-email").value;
   const password = document.getElementById("login-password").value;
@@ -108,20 +108,27 @@ async function handleLogout() {
 }
 
 // === ダッシュボードとセッション管理 ===
+// [修正] Supabase RPCから /api/getMySessions の呼び出しへ変更
 async function loadDashboard() {
   setHeaderText("検定を選択");
   showScreen("dashboard-screen");
   setLoading(true);
   try {
-    // SupabaseのDB関数を呼び出す
-    // この 'get_my_sessions' は次のステップで作成します
-    const { data, error } = await supabase.rpc("get_my_sessions");
-    if (error) throw error;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("ログインしていません。");
+
+    const response = await fetch(
+      `/api/getMySessions?userToken=${session.access_token}`
+    );
+    const mySessions = await response.json();
+    if (!response.ok) throw new Error(mySessions.error);
 
     const sessionList = document.getElementById("session-list");
-    sessionList.innerHTML = ""; // リストをクリア
-    if (data && data.length > 0) {
-      data.forEach((session) => {
+    sessionList.innerHTML = "";
+    if (mySessions && mySessions.length > 0) {
+      mySessions.forEach((session) => {
         const button = document.createElement("button");
         button.className = "key select-item";
         button.innerHTML = `<div class="session-name">${session.name}</div>
@@ -143,17 +150,26 @@ async function loadDashboard() {
   }
 }
 
+// [修正] Supabase Edge Functionから /api/createSession の呼び出しへ変更
 async function handleCreateSession() {
   const sessionName = document.getElementById("session-name-input").value;
   if (!sessionName) return alert("検定名を入力してください。");
   setLoading(true);
   try {
-    // Supabase Edge Functionを呼び出す
-    // この 'create-session' は次のステップで作成します
-    const { data, error } = await supabase.functions.invoke("create-session", {
-      body: { sessionName },
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("ログインしていません。");
+
+    const response = await fetch("/api/createSession", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionName, userToken: session.access_token }),
     });
-    if (error) throw error;
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+
     await loadDashboard();
   } catch (error) {
     alert("検定作成エラー: " + error.message);
@@ -162,6 +178,7 @@ async function handleCreateSession() {
   }
 }
 
+// [修正] Supabase直接操作から /api/joinSession の呼び出しへ変更
 async function handleJoinSession() {
   const joinCode = document
     .getElementById("join-code-input")
@@ -169,16 +186,20 @@ async function handleJoinSession() {
   if (!joinCode) return alert("参加コードを入力してください。");
   setLoading(true);
   try {
-    const { data, error } = await supabase
-      .from("sessions")
-      .select("id")
-      .eq("join_code", joinCode)
-      .single();
-    if (error || !data) throw new Error("無効な参加コードです。");
-    const { error: joinError } = await supabase
-      .from("session_participants")
-      .insert({ session_id: data.id, user_id: currentUser.id });
-    if (joinError && joinError.code !== "23505") throw joinError; // 重複以外のエラーは投げる
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("ログインしていません。");
+
+    const response = await fetch("/api/joinSession", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ joinCode, userToken: session.access_token }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+
     await loadDashboard();
   } catch (error) {
     alert("検定参加エラー: " + error.message);
@@ -192,9 +213,8 @@ async function selectSession(session) {
   document.getElementById("session-info").textContent = currentSession.name;
   setLoading(true);
   try {
-    const { data, error } = await supabase.from("events").select("*"); // 種目データを取得
+    const { data, error } = await supabase.from("events").select("*");
     if (error) throw error;
-
     allTestEvents = {};
     data.forEach((e) => {
       if (!allTestEvents[e.discipline]) allTestEvents[e.discipline] = {};
@@ -202,7 +222,6 @@ async function selectSession(session) {
         allTestEvents[e.discipline][e.level] = [];
       allTestEvents[e.discipline][e.level].push(e.name);
     });
-
     setupDisciplineScreen();
     setHeaderText("種別を選択してください");
     showScreen("discipline-screen");
@@ -213,12 +232,11 @@ async function selectSession(session) {
   }
 }
 
-// === 採点フローの関数群 ===
+// === 採点フロー (ここは変更なし) ===
 function setupDisciplineScreen() {
   const keypad = document.getElementById("discipline-keypad");
   keypad.innerHTML = "";
-  const disciplines = Object.keys(allTestEvents);
-  disciplines.forEach((d) =>
+  Object.keys(allTestEvents).forEach((d) =>
     createButton(keypad, d, () => selectDiscipline(d))
   );
 }
@@ -243,10 +261,10 @@ function setupLevelScreen(discipline) {
 function setupEventScreen(discipline, level) {
   const keypad = document.getElementById("event-keypad");
   keypad.innerHTML = "";
-  const events = allTestEvents[discipline]?.[level] || [];
-  events.forEach((e) => createButton(keypad, e, () => selectEvent(e)));
+  (allTestEvents[discipline]?.[level] || []).forEach((e) =>
+    createButton(keypad, e, () => selectEvent(e))
+  );
 }
-
 function selectDiscipline(discipline) {
   selectedDiscipline = discipline;
   updateInfoDisplay();
@@ -266,20 +284,12 @@ function selectEvent(event) {
   updateInfoDisplay();
   nextSkier();
 }
-
 function inputNumber(num) {
   if (currentScore.length < 2) {
     currentScore =
-      currentScore === "0" && num !== "0"
-        ? num
-        : currentScore !== "0"
-        ? currentScore + num
-        : "0";
-    const value = parseInt(currentScore) || 0;
-    if (value <= 99)
-      document.getElementById("score-display").textContent =
-        currentScore || "0";
-    else currentScore = currentScore.slice(0, -1);
+      currentScore === "0" && num !== "0" ? num : currentScore + num;
+    if (parseInt(currentScore) > 99) currentScore = "99";
+    document.getElementById("score-display").textContent = currentScore || "0";
   }
 }
 function clearInput() {
@@ -287,7 +297,7 @@ function clearInput() {
   document.getElementById("score-display").textContent = "0";
 }
 function confirmScore() {
-  const score = parseInt(currentScore) || 0;
+  const score = parseInt(currentScore, 10) || 0;
   if (score < 0 || score > 99)
     return alert("得点は0-99の範囲で入力してください");
   confirmedScore = score;
@@ -297,16 +307,9 @@ function confirmScore() {
 }
 function inputBibNumber(num) {
   if (currentBib.length < 3) {
-    currentBib =
-      currentBib === "0" && num !== "0"
-        ? num
-        : currentBib !== "0"
-        ? currentBib + num
-        : "0";
-    const value = parseInt(currentBib) || 0;
-    if (value <= 999)
-      document.getElementById("bib-display").textContent = currentBib || "0";
-    else currentBib = currentBib.slice(0, -1);
+    currentBib = currentBib === "0" && num !== "0" ? num : currentBib + num;
+    if (parseInt(currentBib) > 999) currentBib = "999";
+    document.getElementById("bib-display").textContent = currentBib || "0";
   }
 }
 function clearBibInput() {
@@ -314,7 +317,7 @@ function clearBibInput() {
   document.getElementById("bib-display").textContent = "0";
 }
 function confirmBib() {
-  const bib = parseInt(currentBib) || 0;
+  const bib = parseInt(currentBib, 10) || 0;
   if (bib < 1 || bib > 999)
     return alert("ゼッケン番号は1-999の範囲で入力してください");
   document.getElementById("final-bib").textContent = String(bib).padStart(
@@ -326,25 +329,40 @@ function confirmBib() {
   showScreen("submit-screen");
 }
 
+// [修正] Supabase直接操作から /api/submitScore の呼び出しへ変更
 async function submitEntry() {
   document.getElementById("submit-status").innerHTML =
     '<div class="status"><div class="loading"></div> 送信中...</div>';
   try {
-    const { error } = await supabase.from("results").insert({
-      session_id: currentSession.id,
-      bib: parseInt(currentBib),
-      score: confirmedScore,
-      judge_name: document.getElementById("user-info").textContent, // ログイン中のユーザー名
-      discipline: selectedDiscipline,
-      level: selectedLevel,
-      event_name: selectedEvent,
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("ログインしていません。");
+
+    const response = await fetch("/api/submitScore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: currentSession.id,
+        bib: parseInt(currentBib),
+        score: confirmedScore,
+        judge: document.getElementById("user-info").textContent,
+        discipline: selectedDiscipline,
+        level: selectedLevel,
+        event: selectedEvent,
+        userToken: session.access_token,
+      }),
     });
-    if (error) throw error;
-    onSubmitSuccess({ bib: currentBib, score: confirmedScore });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error);
+
+    onSubmitSuccess(result);
   } catch (error) {
     onSubmitError(error);
   }
 }
+
 function onSubmitSuccess(result) {
   document.getElementById("completed-bib").textContent = String(
     result.bib
@@ -364,7 +382,7 @@ function nextSkier() {
   showScreen("score-screen");
 }
 
-// === ナビゲーションとヘルパー関数 ===
+// === ナビゲーションとヘルパー関数 (ここは変更なし) ===
 function changeEvent() {
   showConfirmDialog("現在の採点を中断し、種目選択に戻りますか？", () => {
     selectedDiscipline = "";
@@ -376,9 +394,7 @@ function changeEvent() {
   });
 }
 function executeConfirm() {
-  if (typeof onConfirmAction === "function") {
-    onConfirmAction();
-  }
+  if (typeof onConfirmAction === "function") onConfirmAction();
   onConfirmAction = null;
 }
 function goBackToDashboard() {
@@ -387,7 +403,6 @@ function goBackToDashboard() {
   setHeaderText("検定を選択");
   showScreen("dashboard-screen");
 }
-
 function goBackToDisciplineSelect() {
   selectedDiscipline = "";
   selectedLevel = "";
@@ -426,19 +441,17 @@ async function handleExportOrShare() {
   setLoading(true);
   setHeaderText("データを準備中...");
   try {
-    const { data, error } = await supabase
-      .from("results")
-      .select(
-        "created_at, bib, score, discipline, level, event_name, judge_name"
-      )
-      .eq("session_id", currentSession.id)
-      .order("created_at");
-    if (error) throw error;
-    if (!data || data.length === 0) {
+    const response = await fetch(
+      `/api/getResults?sessionId=${currentSession.id}`
+    );
+    const { results } = await response.json();
+    if (!response.ok) throw new Error(results.error);
+
+    if (!results || results.length === 0) {
       alert("エクスポート/共有するデータがありません。");
       return;
     }
-    const exportData = data.map((item) => ({
+    const exportData = results.map((item) => ({
       採点日時: new Date(item.created_at).toLocaleString("ja-JP"),
       ゼッケン: item.bib,
       得点: item.score,
@@ -451,12 +464,14 @@ async function handleExportOrShare() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "採点結果");
     const fileName = `${currentSession.name}_採点結果.xlsx`;
+
     if (navigator.share) {
       const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
       const blob = new Blob([wbout], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const file = new File([blob], fileName, { type: blob.type });
+
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: currentSession.name,
@@ -475,12 +490,13 @@ async function handleExportOrShare() {
     setLoading(false);
     const activeScreen = document.querySelector(".screen.active").id;
     if (activeScreen === "complete-screen") setHeaderText("送信完了しました");
+    else if (activeScreen === "dashboard-screen") setHeaderText("検定を選択");
   }
 }
 function createButton(parent, text, onClick) {
   const btn = document.createElement("button");
   btn.className = "key select-item";
-  btn.innerHTML = text;
+  btn.textContent = text;
   btn.onclick = onClick;
   parent.appendChild(btn);
 }
@@ -522,23 +538,16 @@ function onSubmitError(error) {
     "submit-status"
   ).innerHTML = `<div class="error">送信エラー: ${error.message}<br><button class="nav-btn" onclick="submitEntry()">再試行</button></div>`;
 }
-/**
- * 参加コードをクリップボードにコピーする
- * @param {Event} event - クリックイベント
- * @param {string} code - コピーするコード
- */
 function copyJoinCode(event, code) {
-  // ボタン全体がクリックされるのを防ぐ
   event.stopPropagation();
-
   navigator.clipboard
     .writeText(code)
     .then(() => {
       const copyButton = event.target;
-      copyButton.textContent = "copied";
+      copyButton.textContent = "copied!";
       setTimeout(() => {
         copyButton.textContent = "copy";
-      }, 1500); // 1.5秒後に元に戻す
+      }, 1500);
     })
     .catch((err) => {
       console.error("コピーに失敗しました:", err);
