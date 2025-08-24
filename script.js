@@ -45,8 +45,13 @@ async function setUserState(session) {
     .select("full_name")
     .eq("id", currentUser.id)
     .single();
+
+  // ★ 取得した氏名を currentUser オブジェクトに保存
+  currentUser.full_name = profile?.full_name;
+
   document.getElementById("user-info").textContent =
-    profile?.full_name || currentUser.email;
+    currentUser.full_name || currentUser.email; // 名前の表示を優先
+
   await loadDashboard();
 }
 
@@ -536,8 +541,10 @@ function setLoading(isLoading) {
     .classList.toggle("active", isLoading);
 }
 function updateInfoDisplay() {
+  // ★ currentUser.email から currentUser.full_name に変更
   document.getElementById("user-info").textContent =
-    currentUser?.email || "ログインしていません";
+    currentUser?.full_name || "ログインしていません";
+
   document.getElementById("session-info").textContent =
     currentSession?.name || "未選択";
   const selEl = document.getElementById("selection-info");
@@ -629,7 +636,8 @@ async function handleUpdateName() {
 
     if (error) throw error;
 
-    // ヘッダーに表示されている名前も更新
+    // ★ 保存している氏名情報と、ヘッダー表示を両方更新
+    currentUser.full_name = newName;
     document.getElementById("user-info").textContent = newName;
 
     alert("名前を更新しました。");
