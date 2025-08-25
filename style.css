@@ -290,3 +290,59 @@ body {
     background: transparent;
     transform: none;
 }
+
+/* --- 紹介ページ用のスタイル --- */
+#landing-screen {
+    justify-content: space-around;
+}
+
+.hero-section {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.hero-section h1 {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 12px;
+}
+
+.hero-section .subtitle {
+    font-size: 16px;
+    color: var(--secondary-text);
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.features-section {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.feature-item {
+    text-align: center;
+}
+
+.feature-item .feature-icon {
+    font-size: 32px;
+}
+
+.feature-item h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-top: 8px;
+    margin-bottom: 4px;
+}
+
+.feature-item p {
+    font-size: 14px;
+    color: var(--secondary-text);
+}
+
+#landing-screen .nav-buttons {
+    margin-bottom: 20px;
+}

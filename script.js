@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await setUserState(session);
   } else {
     setHeaderText("ようこそ");
-    showScreen("login-screen");
+    showScreen("landing-screen");
   }
 
   const shareButtons = document.querySelectorAll('[id^="share-button-"]');
