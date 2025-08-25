@@ -533,6 +533,7 @@ function createButton(parent, text, onClick) {
   parent.appendChild(btn);
 }
 function showScreen(screenId) {
+  window.scrollTo(0, 0);
   const header = document.querySelector(".header");
   if (
     screenId === "landing-screen" ||
