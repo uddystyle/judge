@@ -292,57 +292,86 @@ body {
 }
 
 /* --- 紹介ページ用のスタイル --- */
+
+/* ページ全体の背景色と基本フォント設定 */
 #landing-screen {
-    justify-content: space-around;
+    background: linear-gradient(180deg, #f7f9fc 0%, #ffffff 100%);
+    justify-content: space-between;
+    padding-top: 40px;
+    padding-bottom: 40px;
 }
 
+/* メインキャッチコピーのエリア */
 .hero-section {
     text-align: center;
-    margin-top: 20px;
 }
 
 .hero-section h1 {
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1.3;
-    margin-bottom: 12px;
+    font-size: 32px; /* 少し大きくしてインパクトを出す */
+    font-weight: 800; /* より太く、力強く */
+    line-height: 1.4;
+    color: #1a202c; /* 真っ黒より少し柔らかい黒 */
+    margin-bottom: 16px;
 }
 
 .hero-section .subtitle {
-    font-size: 16px;
-    color: var(--secondary-text);
-    max-width: 300px;
+    font-size: 17px;
+    color: #5a6474; /* 少し濃いめのグレーで見やすく */
+    max-width: 320px;
     margin: 0 auto;
+    line-height: 1.6;
 }
 
+/* 3つの特長を紹介するエリア */
 .features-section {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px; /* カード間の余白 */
     width: 100%;
-    margin-top: 20px;
 }
 
+/* 各特長を「カード」としてデザイン */
 .feature-item {
+    background-color: #ffffff;
+    border-radius: 16px; /* 角を丸く */
+    padding: 24px;
     text-align: center;
+    /* 影をつけて立体感を出す */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e8eef6;
 }
 
+/* アイコンを円で囲む */
 .feature-item .feature-icon {
-    font-size: 32px;
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    line-height: 50px; /* アイコンを上下中央に */
+    font-size: 24px;
+    background-color: #eef2ff; /* アイコン背景色 */
+    color: #4a69e2; /* アイコン自体の色 */
+    border-radius: 50%; /* 正円にする */
 }
 
 .feature-item h3 {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 600;
-    margin-top: 8px;
-    margin-bottom: 4px;
+    color: #1a202c;
+    margin-top: 16px;
+    margin-bottom: 6px;
 }
 
 .feature-item p {
-    font-size: 14px;
-    color: var(--secondary-text);
+    font-size: 15px;
+    color: #5a6474;
+    line-height: 1.5;
 }
 
-#landing-screen .nav-buttons {
-    margin-bottom: 20px;
+/* ボタンのデザインを微調整 */
+#landing-screen .nav-buttons .nav-btn {
+    padding: 16px 20px;
+    font-size: 18px;
+    font-weight: 600;
+    border-radius: 14px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }

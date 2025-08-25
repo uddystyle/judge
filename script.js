@@ -533,6 +533,16 @@ function createButton(parent, text, onClick) {
   parent.appendChild(btn);
 }
 function showScreen(screenId) {
+  const header = document.querySelector(".header");
+  if (
+    screenId === "landing-screen" ||
+    screenId === "login-screen" ||
+    screenId === "signup-screen"
+  ) {
+    header.style.display = "none";
+  } else {
+    header.style.display = "block";
+  }
   document
     .querySelectorAll(".screen")
     .forEach((s) => s.classList.remove("active"));
