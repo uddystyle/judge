@@ -307,7 +307,7 @@ body {
 }
 
 .hero-section h1 {
-    font-size: 32px; /* 少し大きくしてインパクトを出す */
+    font-size: 24px; /* 少し大きくしてインパクトを出す */
     font-weight: 800; /* より太く、力強く */
     line-height: 1.4;
     color: #1a202c; /* 真っ黒より少し柔らかい黒 */
@@ -318,7 +318,7 @@ body {
     font-size: 17px;
     color: #5a6474; /* 少し濃いめのグレーで見やすく */
     max-width: 320px;
-    margin: 0 auto;
+    margin: 10px auto;
     line-height: 1.6;
 }
 
