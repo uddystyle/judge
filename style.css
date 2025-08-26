@@ -375,3 +375,12 @@ body {
     border-radius: 14px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
+
+@media (min-width: 768px) {
+    .container {
+        max-width: 800px;
+    }
+    .hero-section h1 {
+        font-size: 32px;
+      }
+}
