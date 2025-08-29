@@ -1,12 +1,14 @@
+/* === Appleデザイン風アップデート === */
 :root {
+    /* --- カラーパレットをApple風に調整 --- */
     --ios-blue: #007aff;
     --ios-red: #ff3b30;
-    --ios-green: #34c759;
-    --light-gray: #f2f2f7;
-    --separator-gray: #e5e5ea;
-    --primary-text: #000000;
-    --secondary-text: #6e6e73;
-    --keypad-bg: #d1d1d6;
+    --ios-green: #28a745; /* 少し落ち着いたグリーンに */
+    --light-gray: #f5f5f7; /* Appleの標準的な背景色 */
+    --separator-gray: #d2d2d7; /* 区切り線の色 */
+    --primary-text: #1d1d1f; /* Appleの標準テキスト色（真っ黒ではない） */
+    --secondary-text: #6e6e73; /* 変更なし（Appleの標準に近い） */
+    --keypad-bg: #e5e5ea; /* グレーボタンの背景 */
 }
 
 * {
@@ -22,77 +24,10 @@ body {
     background-color: var(--light-gray);
     color: var(--primary-text);
     touch-action: manipulation;
+    line-height: 1.5; /* 基本の行間を少し広げる */
 }
 
-.form-container {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    max-width: 100%;
-}
-.form-container input {
-    background: white;
-    border: 1px solid var(--separator-gray);
-    border-radius: 12px;
-    padding: 14px;
-    font-size: 17px;
-    -webkit-appearance: none;
-}
-#session-list .key.select-item {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 12px 16px;
-    gap: 6px;
-    height: auto;
-    min-height: 70px;
-}
-#session-list .session-name {
-    font-size: 18px;
-    font-weight: 600;
-    text-align: left;
-}
-#session-list .join-code-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-#session-list .join-code {
-    font-size: 14px;
-    font-weight: 400;
-    color: var(--secondary-text);
-    background-color: var(--light-gray);
-    padding: 4px 8px;
-    border-radius: 6px;
-}
-.copy-btn {
-    background-color: var(--light-gray);
-    color: var(--secondary-text);
-    border: none;
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 14px;
-    font-weight: 400;
-    cursor: pointer;
-}
-.copy-btn:active {
-    background-color: #c8c8cd;
-}
-.details-btn {
-    background-color: var(--ios-blue);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 6px 10px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    margin-left: 4px; /* copyボタンとの間隔 */
-}
-.details-btn:active {
-    background-color: #0056b3;
-}
+/* --- コンテナのスタイルを調整 --- */
 .container {
     width: 100%;
     background: var(--light-gray);
@@ -101,10 +36,12 @@ body {
     flex-direction: column;
 }
 
+/* --- ヘッダー --- */
 .header {
-    background: #ffffff;
+    background: rgba(255, 255, 255, 0.8); /* 少し透明感のある背景 */
+    backdrop-filter: blur(10px); /* すりガラス効果 */
     color: var(--primary-text);
-    padding: 12px 16px;
+    padding: 12px 20px;
     text-align: center;
     border-bottom: 1px solid var(--separator-gray);
 }
@@ -114,272 +51,275 @@ body {
     font-size: 17px;
     font-weight: 600;
 }
-
-.info-display {
-    font-size: 12px;
-    color: var(--secondary-text);
-    margin-top: 4px;
-}
-
+.info-display { font-size: 12px; color: var(--secondary-text); margin-top: 4px; }
 .info-display span { margin: 0 4px; }
 .info-display b { font-weight: 500; }
 
+/* --- 画面全体のパディングを調整 --- */
 .screen {
     display: none;
-    padding: 24px 16px;
+    padding: 28px 20px; /* 上下の余白を広げる */
     text-align: center;
     flex-grow: 1;
     background-color: var(--light-gray);
 }
+.screen.active { display: flex; flex-direction: column; }
 
-.screen.active {
+/* --- フォーム --- */
+.form-container {
     display: flex;
     flex-direction: column;
+    gap: 16px;
+    max-width: 100%;
+}
+.form-container input {
+    background: #fff;
+    border: 1px solid var(--separator-gray);
+    border-radius: 12px;
+    padding: 15px; /* パディングを少し増やす */
+    font-size: 16px;
+    -webkit-appearance: none;
 }
 
+/* --- セッションリスト --- */
+#session-list .key.select-item {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 16px; /* パディングを増やす */
+    gap: 8px;
+    height: auto;
+    min-height: 70px;
+}
+#session-list .session-name { font-size: 18px; font-weight: 600; text-align: left; }
+#session-list .join-code-wrapper { display: flex; align-items: center; gap: 8px; }
+#session-list .join-code {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--secondary-text);
+    background-color: #e8e8ed; /* 背景色を少し調整 */
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+.copy-btn {
+    background-color: #e8e8ed;
+    color: var(--secondary-text);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+}
+.copy-btn:active { background-color: #dcdce1; }
+.details-btn {
+    background-color: var(--ios-blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-left: 4px;
+}
+.details-btn:active { background-color: #0062cc; }
+
+/* --- リスト形式のボタン --- */
 .list-keypad {
     display: flex;
     flex-direction: column;
     gap: 12px;
     max-width: 100%;
 }
-
 .key.select-item {
     background: white;
     color: var(--ios-blue);
     border-radius: 12px;
     width: 100%;
-    height: 50px;
-    font-size: 18px;
-    font-weight: 800;
+    height: 54px; /* 高さを少し増やす */
+    font-size: 17px; /* 少し小さく */
+    font-weight: 600; /* 太さを調整 */
     text-align: center;
-    border: none;
+    border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     cursor: pointer;
     transition: background-color 0.2s;
 }
-.key.select-item:active {
-     background-color: var(--separator-gray);
-}
+.key.select-item:active { background-color: var(--light-gray); }
 
+/* --- 見出し --- */
 .instruction {
-    font-size: 22px;
-    font-weight: 600;
+    font-size: 24px; /* 少し大きく */
+    font-weight: 700;
     color: var(--primary-text);
-    margin-bottom: 24px;
+    margin-bottom: 28px;
+    line-height: 1.3;
 }
 
+/* --- ナビゲーションボタン --- */
 .nav-buttons {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 24px;
+    gap: 14px;
+    margin-top: 28px;
 }
-
 .nav-btn {
     background-color: var(--keypad-bg);
     color: var(--primary-text);
     border: none;
     border-radius: 12px;
-    padding: 14px 20px;
+    padding: 15px 20px;
     font-size: 17px;
-    font-weight: 400;
+    font-weight: 600; /* 少し太く */
     cursor: pointer;
     transition: background-color 0.2s;
 }
-
-.nav-btn:active {
-    background-color: #c8c8cd;
-}
-
+.nav-btn:active { background-color: #dcdce1; }
 .nav-btn.primary {
     background-color: var(--ios-blue);
     color: white;
-    font-weight: 600;
 }
-.nav-btn.primary:active {
-     background-color: #0056b3;
-}
-
+.nav-btn.primary:active { background-color: #0062cc; }
 .nav-btn.danger {
     background-color: var(--ios-red);
     color: white;
-    font-weight: 600;
 }
-.nav-btn.danger:active {
-     background-color: #ff0000;
-}
+.nav-btn.danger:active { background-color: #d93025; }
 
-.status, .error { padding: 15px; border-radius: 8px; margin: 20px auto; text-align: center; font-size: 15px; max-width: 320px; }
-.status { background: #eef7ee; border: 1px solid var(--ios-green); color: #2e6b3d; }
+/* --- ステータス・エラー表示 --- */
+.status, .error { padding: 15px; border-radius: 12px; margin: 20px auto; text-align: center; font-size: 15px; max-width: 340px; }
+.status { background: #e6f6e8; border: 1px solid var(--ios-green); color: #1e5c2e; }
+.error { background: #fce8e6; border: 1px solid var(--ios-red); color: #a50e0e; }
+
+/* --- ローディング --- */
 .loading { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(0,0,0,0.1); border-top-color: var(--primary-text); border-radius: 50%; animation: spin 1s linear infinite; }
-.loading-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.8); z-index: 10; display: none; justify-content: center; align-items: center; flex-direction: column; backdrop-filter: blur(4px); }
+.loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(245, 245, 247, 0.8); z-index: 10; display: none; justify-content: center; align-items: center; flex-direction: column; backdrop-filter: blur(8px); }
 .loading-overlay.active { display: flex; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.error { background: #ffeeee; border: 1px solid var(--ios-red); color: #c50f1f; }
 
+/* --- 数字入力画面 --- */
 .numeric-display {
-    background: #f8f9fa;
-    border: 2px solid #e9ecef;
-    border-radius: 10px;
-    font-size: 36px;
-    font-weight: bold;
+    background: transparent;
+    border: none;
+    font-size: 48px; /* フォントを大きく */
+    font-weight: 600;
     padding: 20px;
     margin: 0;
     min-height: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #333;
+    color: var(--primary-text);
 }
-
 .numeric-keypad {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px; /* 間隔を少し詰める */
-    width: 100%; /* 横幅を画面いっぱいに広げる */
-    max-width: 100%; /* 最大幅の制限をなくす */
-    margin: 20px auto;
+    gap: 16px; /* 間隔を広げる */
+    width: 100%;
+    max-width: 100%;
+    margin: 24px auto;
 }
-
 .numeric-key {
-    background: #f5f5f5;
+    background: #ffffff;
     border: none;
-    border-radius: 15px;
-    font-size: 36px;
-    font-weight: bold;
-    height: 85px; /* 高さを少し抑えて相対的に幅広に見せる */
+    border-radius: 18px; /* 角を丸く */
+    font-size: 32px;
+    font-weight: 500;
+    height: 80px;
     cursor: pointer;
     transition: all 0.2s;
-    color: #333;
+    color: var(--primary-text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
+.numeric-key:active { transform: translateY(1px); background: #f0f0f0; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+/* --- グラデーションを単色に変更 --- */
+.numeric-key.confirm { background: var(--ios-green); color: white; grid-column: span 3; }
+.numeric-key.confirm:active { background: #24993e; }
+.numeric-key.clear { background: var(--ios-red); color: white; }
+.numeric-key.clear:active { background: #d93025; }
+.numeric-key.spacer { background: transparent; border: none; cursor: default; box-shadow: none; }
+.numeric-key.spacer:hover, .numeric-key.spacer:active { background: transparent; transform: none; }
 
-.numeric-key:hover {
-    background: #e0e0e0;
-    transform: translateY(-2px);
-}
-
-.numeric-key:active {
-    transform: translateY(0);
-    background: #d0d0d0;
-}
-
-.numeric-key.confirm {
-    background: linear-gradient(45deg, #4CAF50, #45a049);
-    color: white;
-    grid-column: span 3;
-}
-
-.numeric-key.confirm:hover {
-    background: linear-gradient(45deg, #45a049, #3d8b40);
-}
-
-.numeric-key.clear {
-    background: linear-gradient(45deg, #f44336, #d32f2f);
-    color: white;
-}
-
-.numeric-key.spacer {
-    background: transparent;
-    border: none;
-    cursor: default;
-}
-
-.numeric-key.spacer:hover {
-    background: transparent;
-    transform: none;
-}
 
 /* --- 紹介ページ用のスタイル --- */
-
-/* ページ全体の背景色と基本フォント設定 */
 #landing-screen {
-    background: linear-gradient(180deg, #f7f9fc 0%, #ffffff 100%);
+    background: #fff;
     justify-content: space-between;
-    padding-top: 40px;
-    padding-bottom: 40px;
+    padding-top: 50px;
+    padding-bottom: 50px;
 }
-
-/* メインキャッチコピーのエリア */
-.hero-section {
-    text-align: center;
-}
-
+.hero-section { text-align: center; }
 .hero-section h1 {
-    font-size: 24px; /* 少し大きくしてインパクトを出す */
-    font-weight: 800; /* より太く、力強く */
-    line-height: 1.4;
-    color: #1a202c; /* 真っ黒より少し柔らかい黒 */
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--primary-text);
     margin-bottom: 16px;
 }
-
 .hero-section .subtitle {
-    font-size: 17px;
-    color: #5a6474; /* 少し濃いめのグレーで見やすく */
-    max-width: 320px;
-    margin: 16px auto;
+    font-size: 18px;
+    color: var(--secondary-text);
+    max-width: 340px;
+    margin: 16px auto 40px; /* 下の余白を広げる */
     line-height: 1.6;
 }
-
-/* 3つの特長を紹介するエリア */
 .features-section {
     display: flex;
     flex-direction: column;
-    gap: 16px; /* カード間の余白 */
+    gap: 20px;
     width: 100%;
 }
-
-/* 各特長を「カード」としてデザイン */
 .feature-item {
-    background-color: #ffffff;
-    border-radius: 16px; /* 角を丸く */
+    background-color: var(--light-gray);
+    border-radius: 18px;
     padding: 24px;
     text-align: center;
-    /* 影をつけて立体感を出す */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e8eef6;
+    box-shadow: none; /* 影をなくす */
+    border: none;
 }
-
-/* アイコンを円で囲む */
 .feature-item .feature-icon {
     display: inline-block;
     width: 50px;
     height: 50px;
-    line-height: 50px; /* アイコンを上下中央に */
+    line-height: 50px;
     font-size: 24px;
-    background-color: #eef2ff; /* アイコン背景色 */
-    color: #4a69e2; /* アイコン自体の色 */
-    border-radius: 50%; /* 正円にする */
+    background-color: #e5e5ea;
+    color: var(--primary-text);
+    border-radius: 50%;
 }
-
 .feature-item h3 {
     font-size: 18px;
     font-weight: 600;
-    color: #1a202c;
+    color: var(--primary-text);
     margin-top: 16px;
     margin-bottom: 6px;
 }
-
 .feature-item p {
     font-size: 15px;
-    color: #5a6474;
+    color: var(--secondary-text);
     line-height: 1.5;
 }
-
-/* ボタンのデザインを微調整 */
 #landing-screen .nav-buttons .nav-btn {
     padding: 16px 20px;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 600;
-    border-radius: 14px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: none;
 }
 
+/* --- レスポンシブ設定 --- */
 @media (min-width: 768px) {
     .container {
         max-width: 800px;
         margin: 0 auto;
+        box-shadow: 0 0 40px rgba(0,0,0,0.05); /* PC表示で影をつける */
     }
     .hero-section h1 {
-        font-size: 32px;
-      }
+        font-size: 40px;
+    }
+    .hero-section .subtitle {
+        font-size: 20px;
+    }
 }
