@@ -1,13 +1,11 @@
-/* === Appleデザイン風アップデート === */
 :root {
-    /* --- カラーパレットをApple風に調整 --- */
     --ios-blue: #007aff;
     --ios-red: #ff3b30;
     --ios-green: #28a745; /* 少し落ち着いたグリーンに */
-    --light-gray: #f5f5f7; /* Appleの標準的な背景色 */
+    --light-gray: #f5f5f7;
     --separator-gray: #d2d2d7; /* 区切り線の色 */
-    --primary-text: #1d1d1f; /* Appleの標準テキスト色（真っ黒ではない） */
-    --secondary-text: #6e6e73; /* 変更なし（Appleの標準に近い） */
+    --primary-text: #1d1d1f;
+    --secondary-text: #6e6e73;
     --keypad-bg: #e5e5ea; /* グレーボタンの背景 */
 }
 

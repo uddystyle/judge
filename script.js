@@ -56,7 +56,6 @@ async function setUserState(session) {
 }
 
 // === 認証関連 ===
-// [修正] /api/signup を呼び出す (これは元のままでOK)
 async function handleSignup() {
   const fullName = document.getElementById("signup-name").value;
   const email = document.getElementById("signup-email").value;
@@ -81,7 +80,6 @@ async function handleSignup() {
   }
 }
 
-// [修正] エラーメッセージを画面に表示するように変更
 async function handleLogin() {
   const email = document.getElementById("login-email").value;
   const password = document.getElementById("login-password").value;
@@ -129,7 +127,9 @@ async function handleLogout() {
   document.getElementById("user-info").textContent = "ログインしていません";
   document.getElementById("session-info").textContent = "検定未選択";
   setHeaderText("ようこそ");
-  showScreen("login-screen");
+  // ▼▼▼ 変更箇所 ▼▼▼
+  showScreen("landing-screen"); // ログイン画面ではなくランディングページへ
+  // ▲▲▲ 変更箇所 ▲▲▲
   setLoading(false);
 }
 
@@ -147,6 +147,9 @@ async function loadDashboard() {
     const response = await fetch(
       `/api/getMySessions?userToken=${session.access_token}`
     );
+    if (response.status === 401) {
+      throw new Error("認証されていません。");
+    }
     const mySessions = await response.json();
     if (!response.ok) throw new Error(mySessions.error);
 
@@ -156,7 +159,6 @@ async function loadDashboard() {
       mySessions.forEach((session) => {
         const button = document.createElement("button");
         button.className = "key select-item";
-        // ボタンのHTMLに詳細ボタンを追加
         button.innerHTML = `<div class="session-name">${session.name}</div>
             <div class="join-code-wrapper">
                 <span class="join-code">コード: ${session.join_code}</span>
@@ -175,13 +177,24 @@ async function loadDashboard() {
         '<p style="color: var(--secondary-text);">参加中の検定はありません。</p>';
     }
   } catch (error) {
-    alert("検定の読み込みエラー: " + error.message);
+    if (
+      error.message.includes("ログインしていません") ||
+      error.message.includes("認証されていません")
+    ) {
+      currentUser = null;
+      currentSession = null;
+      document.getElementById("user-info").textContent = "ログインしていません";
+      document.getElementById("session-info").textContent = "検定未選択";
+      setHeaderText("ようこそ");
+      showScreen("landing-screen");
+    } else {
+      alert("検定の読み込みエラー: " + error.message);
+    }
   } finally {
     setLoading(false);
   }
 }
 
-// [修正] Supabase Edge Functionから /api/createSession の呼び出しへ変更
 async function handleCreateSession() {
   const sessionName = document.getElementById("session-name-input").value;
   if (!sessionName) return alert("検定名を入力してください。");
@@ -209,7 +222,6 @@ async function handleCreateSession() {
   }
 }
 
-// [修正] Supabase直接操作から /api/joinSession の呼び出しへ変更
 async function handleJoinSession() {
   const joinCode = document
     .getElementById("join-code-input")
@@ -263,7 +275,7 @@ async function selectSession(session) {
   }
 }
 
-// === 採点フロー (ここは変更なし) ===
+// === 採点フロー ===
 function setupDisciplineScreen() {
   const keypad = document.getElementById("discipline-keypad");
   keypad.innerHTML = "";
@@ -332,7 +344,6 @@ function confirmScore() {
   if (score < 0 || score > 99)
     return alert("得点は0-99の範囲で入力してください");
   confirmedScore = score;
-  //   document.getElementById("confirmed-score").textContent = score;
   setHeaderText("ゼッケン番号を入力してください");
   showScreen("bib-screen");
 }
@@ -360,7 +371,6 @@ function confirmBib() {
   showScreen("submit-screen");
 }
 
-// [修正] Supabase直接操作から /api/submitScore の呼び出しへ変更
 async function submitEntry() {
   document.getElementById("submit-status").innerHTML =
     '<div class="status"><div class="loading"></div> 送信中...</div>';
@@ -558,7 +568,6 @@ function setLoading(isLoading) {
     .classList.toggle("active", isLoading);
 }
 function updateInfoDisplay() {
-  // ★ currentUser.email から currentUser.full_name に変更
   document.getElementById("user-info").textContent =
     currentUser?.full_name || "ログインしていません";
 
@@ -604,14 +613,9 @@ function clearLoginError() {
 }
 
 // === アカウント設定関連 ===
-
-/**
- * アカウント設定画面を表示し、現在のユーザー名をフォームに設定する
- */
 async function showAccountScreen() {
   try {
     setLoading(true);
-    // 現在のユーザーのプロフィール情報を取得
     const { data: profile, error } = await supabase
       .from("profiles")
       .select("full_name")
@@ -620,10 +624,7 @@ async function showAccountScreen() {
 
     if (error) throw error;
 
-    // フォームに現在の名前を表示
     document.getElementById("account-name").value = profile.full_name || "";
-
-    // パスワード入力欄はクリアしておく
     document.getElementById("account-password").value = "";
     document.getElementById("account-password-confirm").value = "";
 
@@ -636,16 +637,12 @@ async function showAccountScreen() {
   }
 }
 
-/**
- * ユーザー名を更新する
- */
 async function handleUpdateName() {
   const newName = document.getElementById("account-name").value;
   if (!newName.trim()) return alert("氏名を入力してください。");
 
   setLoading(true);
   try {
-    // 'profiles'テーブルのfull_nameを更新
     const { error } = await supabase
       .from("profiles")
       .update({ full_name: newName })
@@ -653,7 +650,6 @@ async function handleUpdateName() {
 
     if (error) throw error;
 
-    // ★ 保存している氏名情報と、ヘッダー表示を両方更新
     currentUser.full_name = newName;
     document.getElementById("user-info").textContent = newName;
 
@@ -665,9 +661,6 @@ async function handleUpdateName() {
   }
 }
 
-/**
- * パスワードを更新する
- */
 async function handleUpdatePassword() {
   const newPassword = document.getElementById("account-password").value;
   const confirmPassword = document.getElementById(
@@ -683,12 +676,10 @@ async function handleUpdatePassword() {
 
   setLoading(true);
   try {
-    // Supabaseの認証機能を使ってパスワードを更新
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
 
     alert("パスワードを更新しました。");
-    // 更新が成功したら入力欄をクリア
     document.getElementById("account-password").value = "";
     document.getElementById("account-password-confirm").value = "";
   } catch (error) {
@@ -699,19 +690,11 @@ async function handleUpdatePassword() {
 }
 
 // === アカウント削除関連 ===
-
-/**
- * アカウント削除の確認画面を表示する
- */
 function showDeleteConfirm() {
-  // 現在アクティブな画面を記憶しておく（キャンセル時に戻るため）
   previousScreen = document.querySelector(".screen.active").id;
   showScreen("delete-confirm-screen");
 }
 
-/**
- * アカウントを削除する処理を実行する
- */
 async function handleDeleteAccount() {
   setLoading(true);
   try {
@@ -723,7 +706,6 @@ async function handleDeleteAccount() {
       throw new Error("ログインしていません。");
     }
 
-    // バックエンドの削除APIを呼び出す
     const response = await fetch("/api/deleteUser", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -737,14 +719,15 @@ async function handleDeleteAccount() {
 
     alert("アカウントが正常に削除されました。");
 
-    // ログアウト処理を行い、ログイン画面に遷移する
     await supabase.auth.signOut();
     currentUser = null;
     currentSession = null;
     document.getElementById("user-info").textContent = "ログインしていません";
     document.getElementById("session-info").textContent = "検定未選択";
     setHeaderText("ようこそ");
-    showScreen("login-screen");
+    // ▼▼▼ 変更箇所 ▼▼▼
+    showScreen("landing-screen"); // ログイン画面ではなくランディングページへ
+    // ▲▲▲ 変更箇所 ▲▲▲
   } catch (error) {
     alert("エラー: " + error.message);
   } finally {
@@ -753,16 +736,10 @@ async function handleDeleteAccount() {
 }
 
 // === 検定詳細関連 ===
-
-/**
- * 検定詳細画面を表示する
- * @param {Event} event - クリックイベント
- * @param {object} session - 対象のセッション情報
- */
 async function showSessionDetails(event, session) {
-  event.stopPropagation(); // 親要素（検定選択ボタン）のクリックイベントを抑制
+  event.stopPropagation();
   setLoading(true);
-  currentSession = session; // 現在のセッションとして設定
+  currentSession = session;
 
   try {
     const response = await fetch(
@@ -771,13 +748,11 @@ async function showSessionDetails(event, session) {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
 
-    // フォームに検定名をセット
     document.getElementById(
       "session-details-title"
     ).textContent = `${data.session_name} の詳細`;
     document.getElementById("session-details-name").value = data.session_name;
 
-    // 参加者リストを表示
     const listEl = document.getElementById("session-participants-list");
     listEl.innerHTML = "";
     if (data.participants && data.participants.length > 0) {
@@ -798,15 +773,12 @@ async function showSessionDetails(event, session) {
     showScreen("session-details-screen");
   } catch (error) {
     alert("詳細の読み込みに失敗しました: " + error.message);
-    goBackToDashboard(); // エラー時はダッシュボードに戻る
+    goBackToDashboard();
   } finally {
     setLoading(false);
   }
 }
 
-/**
- * 検定名を更新する
- */
 async function handleUpdateSessionName() {
   const newName = document.getElementById("session-details-name").value;
   if (!newName.trim()) return alert("検定名を入力してください。");
@@ -836,7 +808,7 @@ async function handleUpdateSessionName() {
     document.getElementById(
       "session-details-title"
     ).textContent = `${newName} の詳細`;
-    await loadDashboard(); // ダッシュボードのリストも更新
+    await loadDashboard();
   } catch (error) {
     alert("更新に失敗しました: " + error.message);
   } finally {
@@ -844,17 +816,11 @@ async function handleUpdateSessionName() {
   }
 }
 
-/**
- * 検定削除の確認画面を表示する
- */
 function showDeleteSessionConfirm() {
   previousScreen = "session-details-screen";
   showScreen("delete-session-confirm-screen");
 }
 
-/**
- * 検定を削除する
- */
 async function handleDeleteSession() {
   if (!currentSession) return alert("対象の検定が選択されていません。");
   setLoading(true);
