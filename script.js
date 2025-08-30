@@ -2,21 +2,19 @@
 let currentUser = null;
 let currentSession = null;
 let allTestEvents = {};
-let currentScore = "",
-  currentBib = "",
-  confirmedScore = 0;
-let selectedDiscipline = "",
-  selectedLevel = "",
-  selectedEvent = "";
+let currentScore = "";
+let currentBib = "";
+let confirmedScore = 0;
+let selectedDiscipline = "";
+let selectedLevel = "";
+let selectedEvent = "";
 let onConfirmAction = null;
 let previousScreen = "";
-
 // Supabaseクライアントを初期化
 const SUPABASE_URL = "https://kbxlukbvhlxponcentyp.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtieGx1a2J2aGx4cG9uY2VudHlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3NjkzNDcsImV4cCI6MjA3MTM0NTM0N30.5MaOYEUaE4VPQHhDPW1MiJTYUsEQ4mR03Efri-iUHk4";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
 // === 初期化と認証チェック ===
 document.addEventListener("DOMContentLoaded", async () => {
   const {
@@ -28,15 +26,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     setHeaderText("ようこそ");
     showScreen("landing-screen");
   }
-
   const shareButtons = document.querySelectorAll('[id^="share-button-"]');
-  if (navigator.share) {
+  if ("share" in navigator) {
     shareButtons.forEach((btn) => (btn.style.display = "block"));
   } else {
     shareButtons.forEach((btn) => (btn.style.display = "none"));
   }
 });
-
 async function setUserState(session) {
   currentUser = session.user;
   // プロフィール情報を取得してユーザー名を表示
@@ -45,21 +41,24 @@ async function setUserState(session) {
     .select("full_name")
     .eq("id", currentUser.id)
     .single();
-
   // ★ 取得した氏名を currentUser オブジェクトに保存
-  currentUser.full_name = profile?.full_name;
-
-  document.getElementById("user-info").textContent =
-    currentUser.full_name || currentUser.email; // 名前の表示を優先
-
+  if (currentUser) {
+    currentUser.full_name = profile?.full_name;
+  }
+  const userInfoEl = document.getElementById("user-info");
+  if (userInfoEl) {
+    userInfoEl.textContent = currentUser?.full_name || currentUser?.email || "";
+  }
   await loadDashboard();
 }
-
 // === 認証関連 ===
 async function handleSignup() {
-  const fullName = document.getElementById("signup-name").value;
-  const email = document.getElementById("signup-email").value;
-  const password = document.getElementById("signup-password").value;
+  const fullNameInput = document.getElementById("signup-name");
+  const emailInput = document.getElementById("signup-email");
+  const passwordInput = document.getElementById("signup-password");
+  const fullName = fullNameInput?.value || "";
+  const email = emailInput?.value || "";
+  const password = passwordInput?.value || "";
   setLoading(true);
   try {
     const response = await fetch("/api/signup", {
@@ -79,60 +78,54 @@ async function handleSignup() {
     setLoading(false);
   }
 }
-
 async function handleLogin() {
-  const email = document.getElementById("login-email").value;
-  const password = document.getElementById("login-password").value;
+  const emailInput = document.getElementById("login-email");
+  const passwordInput = document.getElementById("login-password");
   const errorMessageDiv = document.getElementById("login-error-message");
-
-  // 以前のエラーメッセージをクリア
-  errorMessageDiv.innerHTML = "";
+  const email = emailInput?.value || "";
+  const password = passwordInput?.value || "";
+  if (errorMessageDiv) errorMessageDiv.innerHTML = "";
   setLoading(true);
-
   try {
-    // 入力が空の場合のチェック
     if (!email || !password) {
       throw new Error("メールアドレスとパスワードを入力してください。");
     }
-
-    // Supabaseでログイン試行
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-
     if (error) {
-      // Supabaseからのエラーを分かりやすい日本語に変換
       if (error.message === "Invalid login credentials") {
         throw new Error("メールアドレスまたはパスワードが正しくありません。");
       }
-      // その他の予期せぬエラー
       throw error;
     }
-
-    await setUserState(data.session);
+    if (data.session) {
+      await setUserState(data.session);
+    } else {
+      throw new Error("セッションの取得に失敗しました。");
+    }
   } catch (error) {
-    // エラーメッセージを画面に表示
-    errorMessageDiv.innerHTML = `<div class="error">${error.message}</div>`;
+    if (errorMessageDiv) {
+      errorMessageDiv.innerHTML = `<div class="error">${error.message}</div>`;
+    }
   } finally {
     setLoading(false);
   }
 }
-
 async function handleLogout() {
   setLoading(true);
   await supabase.auth.signOut();
   currentUser = null;
   currentSession = null;
-  document.getElementById("user-info").textContent = "ログインしていません";
-  document.getElementById("session-info").textContent = "検定未選択";
+  const userInfoEl = document.getElementById("user-info");
+  if (userInfoEl) userInfoEl.textContent = "ログインしていません";
+  const sessionInfoEl = document.getElementById("session-info");
+  if (sessionInfoEl) sessionInfoEl.textContent = "検定未選択";
   setHeaderText("ようこそ");
-  // ▼▼▼ 変更箇所 ▼▼▼
-  showScreen("landing-screen"); // ログイン画面ではなくランディングページへ
-  // ▲▲▲ 変更箇所 ▲▲▲
+  showScreen("landing-screen");
   setLoading(false);
 }
-
 // === ダッシュボードとセッション管理 ===
 async function loadDashboard() {
   setHeaderText("検定を選択");
@@ -143,7 +136,6 @@ async function loadDashboard() {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("ログインしていません。");
-
     const response = await fetch(
       `/api/getMySessions?userToken=${session.access_token}`
     );
@@ -151,9 +143,12 @@ async function loadDashboard() {
       throw new Error("認証されていません。");
     }
     const mySessions = await response.json();
-    if (!response.ok) throw new Error(mySessions.error);
-
+    if (!response.ok) {
+      const errorResult = mySessions;
+      throw new Error(errorResult.error || "検定の読み込みに失敗しました。");
+    }
     const sessionList = document.getElementById("session-list");
+    if (!sessionList) return;
     sessionList.innerHTML = "";
     if (mySessions && mySessions.length > 0) {
       mySessions.forEach((session) => {
@@ -183,8 +178,10 @@ async function loadDashboard() {
     ) {
       currentUser = null;
       currentSession = null;
-      document.getElementById("user-info").textContent = "ログインしていません";
-      document.getElementById("session-info").textContent = "検定未選択";
+      const userInfoEl = document.getElementById("user-info");
+      if (userInfoEl) userInfoEl.textContent = "ログインしていません";
+      const sessionInfoEl = document.getElementById("session-info");
+      if (sessionInfoEl) sessionInfoEl.textContent = "検定未選択";
       setHeaderText("ようこそ");
       showScreen("landing-screen");
     } else {
@@ -194,9 +191,9 @@ async function loadDashboard() {
     setLoading(false);
   }
 }
-
 async function handleCreateSession() {
-  const sessionName = document.getElementById("session-name-input").value;
+  const sessionNameInput = document.getElementById("session-name-input");
+  const sessionName = sessionNameInput?.value || "";
   if (!sessionName) return alert("検定名を入力してください。");
   setLoading(true);
   try {
@@ -204,16 +201,13 @@ async function handleCreateSession() {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("ログインしていません。");
-
     const response = await fetch("/api/createSession", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionName, userToken: session.access_token }),
     });
-
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
-
     await loadDashboard();
   } catch (error) {
     alert("検定作成エラー: " + error.message);
@@ -221,11 +215,9 @@ async function handleCreateSession() {
     setLoading(false);
   }
 }
-
 async function handleJoinSession() {
-  const joinCode = document
-    .getElementById("join-code-input")
-    .value.toUpperCase();
+  const joinCodeInput = document.getElementById("join-code-input");
+  const joinCode = joinCodeInput?.value.toUpperCase() || "";
   if (!joinCode) return alert("参加コードを入力してください。");
   setLoading(true);
   try {
@@ -233,16 +225,13 @@ async function handleJoinSession() {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("ログインしていません。");
-
     const response = await fetch("/api/joinSession", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ joinCode, userToken: session.access_token }),
     });
-
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
-
     await loadDashboard();
   } catch (error) {
     alert("検定参加エラー: " + error.message);
@@ -250,10 +239,11 @@ async function handleJoinSession() {
     setLoading(false);
   }
 }
-
 async function selectSession(session) {
   currentSession = session;
-  document.getElementById("session-info").textContent = currentSession.name;
+  const sessionInfoEl = document.getElementById("session-info");
+  if (sessionInfoEl && currentSession)
+    sessionInfoEl.textContent = currentSession.name;
   setLoading(true);
   try {
     const { data, error } = await supabase.from("events").select("*");
@@ -274,10 +264,10 @@ async function selectSession(session) {
     setLoading(false);
   }
 }
-
 // === 採点フロー ===
 function setupDisciplineScreen() {
   const keypad = document.getElementById("discipline-keypad");
+  if (!keypad) return;
   keypad.innerHTML = "";
   Object.keys(allTestEvents).forEach((d) =>
     createButton(keypad, d, () => selectDiscipline(d))
@@ -285,6 +275,7 @@ function setupDisciplineScreen() {
 }
 function setupLevelScreen(discipline) {
   const keypad = document.getElementById("level-keypad");
+  if (!keypad) return;
   keypad.innerHTML = "";
   const levels = Object.keys(allTestEvents[discipline] || {}).sort(
     (a, b) =>
@@ -303,6 +294,7 @@ function setupLevelScreen(discipline) {
 }
 function setupEventScreen(discipline, level) {
   const keypad = document.getElementById("event-keypad");
+  if (!keypad) return;
   keypad.innerHTML = "";
   (allTestEvents[discipline]?.[level] || []).forEach((e) =>
     createButton(keypad, e, () => selectEvent(e))
@@ -332,12 +324,14 @@ function inputNumber(num) {
     currentScore =
       currentScore === "0" && num !== "0" ? num : currentScore + num;
     if (parseInt(currentScore) > 99) currentScore = "99";
-    document.getElementById("score-display").textContent = currentScore || "0";
+    const scoreDisplay = document.getElementById("score-display");
+    if (scoreDisplay) scoreDisplay.textContent = currentScore || "0";
   }
 }
 function clearInput() {
   currentScore = "";
-  document.getElementById("score-display").textContent = "0";
+  const scoreDisplay = document.getElementById("score-display");
+  if (scoreDisplay) scoreDisplay.textContent = "0";
 }
 function confirmScore() {
   const score = parseInt(currentScore, 10) || 0;
@@ -351,35 +345,39 @@ function inputBibNumber(num) {
   if (currentBib.length < 3) {
     currentBib = currentBib === "0" && num !== "0" ? num : currentBib + num;
     if (parseInt(currentBib) > 999) currentBib = "999";
-    document.getElementById("bib-display").textContent = currentBib || "0";
+    const bibDisplay = document.getElementById("bib-display");
+    if (bibDisplay) bibDisplay.textContent = currentBib || "0";
   }
 }
 function clearBibInput() {
   currentBib = "";
-  document.getElementById("bib-display").textContent = "0";
+  const bibDisplay = document.getElementById("bib-display");
+  if (bibDisplay) bibDisplay.textContent = "0";
 }
 function confirmBib() {
   const bib = parseInt(currentBib, 10) || 0;
   if (bib < 1 || bib > 999)
     return alert("ゼッケン番号は1-999の範囲で入力してください");
-  document.getElementById("final-bib").textContent = String(bib).padStart(
-    3,
-    "0"
-  );
-  document.getElementById("final-score").textContent = confirmedScore;
+  const finalBib = document.getElementById("final-bib");
+  if (finalBib) finalBib.textContent = String(bib).padStart(3, "0");
+  const finalScore = document.getElementById("final-score");
+  if (finalScore) finalScore.textContent = String(confirmedScore);
   setHeaderText("採点内容を確認してください");
   showScreen("submit-screen");
 }
-
 async function submitEntry() {
-  document.getElementById("submit-status").innerHTML =
+  const submitStatus = document.getElementById("submit-status");
+  if (!submitStatus) return;
+  submitStatus.innerHTML =
     '<div class="status"><div class="loading"></div> 送信中...</div>';
   try {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("ログインしていません。");
-
+    if (!currentSession) throw new Error("検定が選択されていません。");
+    const userInfo =
+      document.getElementById("user-info")?.textContent || "不明な検定員";
     const response = await fetch("/api/submitScore", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -387,28 +385,29 @@ async function submitEntry() {
         sessionId: currentSession.id,
         bib: parseInt(currentBib),
         score: confirmedScore,
-        judge: document.getElementById("user-info").textContent,
+        judge: userInfo,
         discipline: selectedDiscipline,
         level: selectedLevel,
         event: selectedEvent,
         userToken: session.access_token,
       }),
     });
-
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error);
-
+    if (!response.ok) {
+      const errorResult = result;
+      throw new Error(errorResult.error || "送信に失敗しました。");
+    }
     onSubmitSuccess(result);
   } catch (error) {
     onSubmitError(error);
   }
 }
-
 function onSubmitSuccess(result) {
-  document.getElementById("completed-bib").textContent = String(
-    result.bib
-  ).padStart(3, "0");
-  document.getElementById("completed-score").textContent = result.score;
+  const completedBib = document.getElementById("completed-bib");
+  if (completedBib)
+    completedBib.textContent = String(result.bib).padStart(3, "0");
+  const completedScore = document.getElementById("completed-score");
+  if (completedScore) completedScore.textContent = String(result.score);
   setHeaderText("送信完了しました");
   showScreen("complete-screen");
 }
@@ -418,11 +417,11 @@ function nextSkier() {
   confirmedScore = 0;
   clearInput();
   clearBibInput();
-  document.getElementById("submit-status").innerHTML = "";
+  const submitStatus = document.getElementById("submit-status");
+  if (submitStatus) submitStatus.innerHTML = "";
   setHeaderText("滑走者の得点を入力してください");
   showScreen("score-screen");
 }
-
 // === ナビゲーションとヘルパー関数 ===
 function changeEvent() {
   showConfirmDialog("現在の採点を中断し、種目選択に戻りますか？", () => {
@@ -465,29 +464,35 @@ function goBack() {
 }
 function editEntry() {
   currentScore = String(confirmedScore);
-  document.getElementById("score-display").textContent = currentScore;
+  const scoreDisplay = document.getElementById("score-display");
+  if (scoreDisplay) scoreDisplay.textContent = currentScore;
   setHeaderText("滑走者の得点を入力してください");
   showScreen("score-screen");
 }
 function showConfirmDialog(message, onConfirm) {
-  previousScreen = document.querySelector(".screen.active").id;
-  document.getElementById("confirm-message").textContent = message;
+  const activeScreen = document.querySelector(".screen.active");
+  if (activeScreen) previousScreen = activeScreen.id;
+  const confirmMessage = document.getElementById("confirm-message");
+  if (confirmMessage) confirmMessage.textContent = message;
   onConfirmAction = onConfirm;
   showScreen("confirm-screen");
 }
 function cancelConfirm() {
-  showScreen(previousScreen);
+  if (previousScreen) showScreen(previousScreen);
 }
 async function handleExportOrShare() {
   setLoading(true);
   setHeaderText("データを準備中...");
   try {
+    if (!currentSession) throw new Error("検定が選択されていません。");
     const response = await fetch(
       `/api/getResults?sessionId=${currentSession.id}`
     );
     const { results } = await response.json();
-    if (!response.ok) throw new Error(results.error);
-
+    if (!response.ok) {
+      const errorResult = results;
+      throw new Error(errorResult.error || "結果の取得に失敗しました。");
+    }
     if (!results || results.length === 0) {
       alert("エクスポート/共有するデータがありません。");
       return;
@@ -500,20 +505,21 @@ async function handleExportOrShare() {
       級: item.level,
       種目: item.event_name,
       検定員: item.judge_name,
-      検定名: currentSession.name,
+      検定名: currentSession?.name || "無名の検定",
     }));
     const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "採点結果");
     const fileName = `${currentSession.name}_採点結果.xlsx`;
-
     if (navigator.share) {
-      const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const wbout = XLSX.utils.write(workbook, {
+        bookType: "xlsx",
+        type: "array",
+      });
       const blob = new Blob([wbout], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const file = new File([blob], fileName, { type: blob.type });
-
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: currentSession.name,
@@ -530,9 +536,13 @@ async function handleExportOrShare() {
     if (error.name !== "AbortError") onApiError(error);
   } finally {
     setLoading(false);
-    const activeScreen = document.querySelector(".screen.active").id;
-    if (activeScreen === "complete-screen") setHeaderText("送信完了しました");
-    else if (activeScreen === "dashboard-screen") setHeaderText("検定を選択");
+    const activeScreen = document.querySelector(".screen.active");
+    if (activeScreen) {
+      if (activeScreen.id === "complete-screen")
+        setHeaderText("送信完了しました");
+      else if (activeScreen.id === "dashboard-screen")
+        setHeaderText("検定を選択");
+    }
   }
 }
 function createButton(parent, text, onClick) {
@@ -545,6 +555,7 @@ function createButton(parent, text, onClick) {
 function showScreen(screenId) {
   window.scrollTo(0, 0);
   const header = document.querySelector(".header");
+  if (!header) return;
   if (
     screenId === "landing-screen" ||
     screenId === "login-screen" ||
@@ -557,22 +568,23 @@ function showScreen(screenId) {
   document
     .querySelectorAll(".screen")
     .forEach((s) => s.classList.remove("active"));
-  document.getElementById(screenId).classList.add("active");
+  const activeScreen = document.getElementById(screenId);
+  if (activeScreen) activeScreen.classList.add("active");
 }
 function setHeaderText(text) {
-  document.getElementById("header-main-text").textContent = text;
+  const headerText = document.getElementById("header-main-text");
+  if (headerText) headerText.textContent = text;
 }
 function setLoading(isLoading) {
-  document
-    .getElementById("loading-overlay")
-    .classList.toggle("active", isLoading);
+  const loadingOverlay = document.getElementById("loading-overlay");
+  if (loadingOverlay) loadingOverlay.classList.toggle("active", isLoading);
 }
 function updateInfoDisplay() {
-  document.getElementById("user-info").textContent =
-    currentUser?.full_name || "ログインしていません";
-
-  document.getElementById("session-info").textContent =
-    currentSession?.name || "未選択";
+  const userInfo = document.getElementById("user-info");
+  if (userInfo)
+    userInfo.textContent = currentUser?.full_name || "ログインしていません";
+  const sessionInfo = document.getElementById("session-info");
+  if (sessionInfo) sessionInfo.textContent = currentSession?.name || "未選択";
   const selEl = document.getElementById("selection-info");
   if (selEl) selEl.textContent = getSelectionLabel();
 }
@@ -588,9 +600,10 @@ function onApiError(error) {
   setLoading(false);
 }
 function onSubmitError(error) {
-  document.getElementById(
-    "submit-status"
-  ).innerHTML = `<div class="error">送信エラー: ${error.message}<br><button class="nav-btn" onclick="submitEntry()">再試行</button></div>`;
+  const submitStatus = document.getElementById("submit-status");
+  if (submitStatus) {
+    submitStatus.innerHTML = `<div class="error">送信エラー: ${error.message}<br><button class="nav-btn" onclick="submitEntry()">再試行</button></div>`;
+  }
 }
 function copyJoinCode(event, code) {
   event.stopPropagation();
@@ -600,7 +613,7 @@ function copyJoinCode(event, code) {
       const copyButton = event.target;
       copyButton.textContent = "COPIED!";
       setTimeout(() => {
-        copyButton.textContent = "COPY";
+        copyButton.textContent = "copy"; // 元のテキストに戻す
       }, 1500);
     })
     .catch((err) => {
@@ -609,25 +622,28 @@ function copyJoinCode(event, code) {
     });
 }
 function clearLoginError() {
-  document.getElementById("login-error-message").innerHTML = "";
+  const errorMessage = document.getElementById("login-error-message");
+  if (errorMessage) errorMessage.innerHTML = "";
 }
-
 // === アカウント設定関連 ===
 async function showAccountScreen() {
   try {
     setLoading(true);
+    if (!currentUser) throw new Error("ユーザーがログインしていません。");
     const { data: profile, error } = await supabase
       .from("profiles")
       .select("full_name")
       .eq("id", currentUser.id)
       .single();
-
     if (error) throw error;
-
-    document.getElementById("account-name").value = profile.full_name || "";
-    document.getElementById("account-password").value = "";
-    document.getElementById("account-password-confirm").value = "";
-
+    const accountNameInput = document.getElementById("account-name");
+    if (accountNameInput) accountNameInput.value = profile?.full_name || "";
+    const passwordInput = document.getElementById("account-password");
+    if (passwordInput) passwordInput.value = "";
+    const passwordConfirmInput = document.getElementById(
+      "account-password-confirm"
+    );
+    if (passwordConfirmInput) passwordConfirmInput.value = "";
     setHeaderText("アカウント設定");
     showScreen("account-screen");
   } catch (error) {
@@ -636,23 +652,21 @@ async function showAccountScreen() {
     setLoading(false);
   }
 }
-
 async function handleUpdateName() {
-  const newName = document.getElementById("account-name").value;
+  const newNameInput = document.getElementById("account-name");
+  const newName = newNameInput?.value || "";
   if (!newName.trim()) return alert("氏名を入力してください。");
-
+  if (!currentUser) return;
   setLoading(true);
   try {
     const { error } = await supabase
       .from("profiles")
       .update({ full_name: newName })
       .eq("id", currentUser.id);
-
     if (error) throw error;
-
     currentUser.full_name = newName;
-    document.getElementById("user-info").textContent = newName;
-
+    const userInfo = document.getElementById("user-info");
+    if (userInfo) userInfo.textContent = newName;
     alert("名前を更新しました。");
   } catch (error) {
     alert("名前の更新に失敗しました: " + error.message);
@@ -660,41 +674,38 @@ async function handleUpdateName() {
     setLoading(false);
   }
 }
-
 async function handleUpdatePassword() {
-  const newPassword = document.getElementById("account-password").value;
-  const confirmPassword = document.getElementById(
+  const newPasswordInput = document.getElementById("account-password");
+  const confirmPasswordInput = document.getElementById(
     "account-password-confirm"
-  ).value;
-
+  );
+  const newPassword = newPasswordInput?.value || "";
+  const confirmPassword = confirmPasswordInput?.value || "";
   if (newPassword.length < 6) {
     return alert("パスワードは6文字以上で入力してください。");
   }
   if (newPassword !== confirmPassword) {
     return alert("パスワードが一致しません。");
   }
-
   setLoading(true);
   try {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
-
     alert("パスワードを更新しました。");
-    document.getElementById("account-password").value = "";
-    document.getElementById("account-password-confirm").value = "";
+    if (newPasswordInput) newPasswordInput.value = "";
+    if (confirmPasswordInput) confirmPasswordInput.value = "";
   } catch (error) {
     alert("パスワードの更新に失敗しました: " + error.message);
   } finally {
     setLoading(false);
   }
 }
-
 // === アカウント削除関連 ===
 function showDeleteConfirm() {
-  previousScreen = document.querySelector(".screen.active").id;
+  const activeScreen = document.querySelector(".screen.active");
+  if (activeScreen) previousScreen = activeScreen.id;
   showScreen("delete-confirm-screen");
 }
-
 async function handleDeleteAccount() {
   setLoading(true);
   try {
@@ -705,55 +716,52 @@ async function handleDeleteAccount() {
     if (sessionError || !session) {
       throw new Error("ログインしていません。");
     }
-
     const response = await fetch("/api/deleteUser", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userToken: session.access_token }),
     });
-
     const result = await response.json();
     if (!response.ok) {
-      throw new Error(result.error || "アカウントの削除に失敗しました。");
+      const errorResult = result;
+      throw new Error(errorResult.error || "アカウントの削除に失敗しました。");
     }
-
     alert("アカウントが正常に削除されました。");
-
     await supabase.auth.signOut();
     currentUser = null;
     currentSession = null;
-    document.getElementById("user-info").textContent = "ログインしていません";
-    document.getElementById("session-info").textContent = "検定未選択";
+    const userInfo = document.getElementById("user-info");
+    if (userInfo) userInfo.textContent = "ログインしていません";
+    const sessionInfo = document.getElementById("session-info");
+    if (sessionInfo) sessionInfo.textContent = "検定未選択";
     setHeaderText("ようこそ");
-    // ▼▼▼ 変更箇所 ▼▼▼
-    showScreen("landing-screen"); // ログイン画面ではなくランディングページへ
-    // ▲▲▲ 変更箇所 ▲▲▲
+    showScreen("landing-screen");
   } catch (error) {
     alert("エラー: " + error.message);
   } finally {
     setLoading(false);
   }
 }
-
 // === 検定詳細関連 ===
 async function showSessionDetails(event, session) {
   event.stopPropagation();
   setLoading(true);
   currentSession = session;
-
   try {
     const response = await fetch(
       `/api/getSessionDetails?sessionId=${session.id}`
     );
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error);
-
-    document.getElementById(
-      "session-details-title"
-    ).textContent = `${data.session_name} の詳細`;
-    document.getElementById("session-details-name").value = data.session_name;
-
+    if (!response.ok) {
+      const errorData = data;
+      throw new Error(errorData.error || "詳細の取得に失敗しました。");
+    }
+    const title = document.getElementById("session-details-title");
+    if (title) title.textContent = `${data.session_name} の詳細`;
+    const nameInput = document.getElementById("session-details-name");
+    if (nameInput) nameInput.value = data.session_name;
     const listEl = document.getElementById("session-participants-list");
+    if (!listEl) return;
     listEl.innerHTML = "";
     if (data.participants && data.participants.length > 0) {
       const ul = document.createElement("ul");
@@ -768,7 +776,6 @@ async function showSessionDetails(event, session) {
     } else {
       listEl.textContent = "参加者はいません。";
     }
-
     setHeaderText("検定の詳細");
     showScreen("session-details-screen");
   } catch (error) {
@@ -778,19 +785,17 @@ async function showSessionDetails(event, session) {
     setLoading(false);
   }
 }
-
 async function handleUpdateSessionName() {
-  const newName = document.getElementById("session-details-name").value;
+  const newNameInput = document.getElementById("session-details-name");
+  const newName = newNameInput?.value || "";
   if (!newName.trim()) return alert("検定名を入力してください。");
   if (!currentSession) return alert("対象の検定が選択されていません。");
-
   setLoading(true);
   try {
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("ログインしていません。");
-
     const response = await fetch("/api/updateSessionName", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -800,14 +805,11 @@ async function handleUpdateSessionName() {
         userToken: session.access_token,
       }),
     });
-
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
-
     alert("検定名を更新しました。");
-    document.getElementById(
-      "session-details-title"
-    ).textContent = `${newName} の詳細`;
+    const title = document.getElementById("session-details-title");
+    if (title) title.textContent = `${newName} の詳細`;
     await loadDashboard();
   } catch (error) {
     alert("更新に失敗しました: " + error.message);
@@ -815,12 +817,10 @@ async function handleUpdateSessionName() {
     setLoading(false);
   }
 }
-
 function showDeleteSessionConfirm() {
   previousScreen = "session-details-screen";
   showScreen("delete-session-confirm-screen");
 }
-
 async function handleDeleteSession() {
   if (!currentSession) return alert("対象の検定が選択されていません。");
   setLoading(true);
@@ -829,7 +829,6 @@ async function handleDeleteSession() {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("ログインしていません。");
-
     const response = await fetch("/api/deleteSession", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -838,10 +837,8 @@ async function handleDeleteSession() {
         userToken: session.access_token,
       }),
     });
-
     const result = await response.json();
     if (!response.ok) throw new Error(result.error);
-
     alert("検定を削除しました。");
     await loadDashboard();
   } catch (error) {
