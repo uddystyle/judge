@@ -35,7 +35,12 @@ import {
   showDeleteSessionConfirm,
   handleDeleteSession,
 } from "./session.js";
-import { showScreen, cancelConfirm, clearLoginError } from "./ui.js";
+import {
+  showScreen,
+  cancelConfirm,
+  clearLoginError,
+  setHeaderText,
+} from "./ui.js";
 
 function initializeEventListeners() {
   // Landing Screen
@@ -109,8 +114,9 @@ function initializeEventListeners() {
 
   // Scoring Screens
   document.getElementById("score-keypad")?.addEventListener("click", (e) => {
-    if (e.target.matches(".numeric-key[data-value]")) {
-      inputNumber(e.target.dataset.value);
+    const target = e.target;
+    if (target && target.matches(".numeric-key[data-value]")) {
+      inputNumber(target.dataset.value);
     }
   });
   document
@@ -124,8 +130,9 @@ function initializeEventListeners() {
     ?.addEventListener("click", changeEvent);
 
   document.getElementById("bib-keypad")?.addEventListener("click", (e) => {
-    if (e.target.matches(".numeric-key[data-value]")) {
-      inputBibNumber(e.target.dataset.value);
+    const target = e.target;
+    if (target && target.matches(".numeric-key[data-value]")) {
+      inputBibNumber(target.dataset.value);
     }
   });
   document
