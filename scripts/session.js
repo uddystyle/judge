@@ -13,6 +13,24 @@ import {
   copyJoinCode,
 } from "./ui.js";
 
+// === 新しいエントリーポイント ===
+function startNewEntry() {
+  state.currentScore = "";
+  state.currentBib = "";
+  state.confirmedScore = 0;
+
+  const bibDisplay = document.getElementById("bib-display");
+  if (bibDisplay) bibDisplay.textContent = "0";
+
+  const scoreDisplay = document.getElementById("score-display");
+  if (scoreDisplay) scoreDisplay.textContent = "0";
+
+  document.getElementById("submit-status").innerHTML = "";
+
+  setHeaderText("ゼッケン番号を入力してください");
+  showScreen("bib-screen");
+}
+
 export async function loadDashboard() {
   setHeaderText("検定を選択");
   showScreen("dashboard-screen");
@@ -137,7 +155,7 @@ export async function handleJoinSession() {
   }
 }
 
-export async function selectSession(session) {
+async function selectSession(session) {
   state.currentSession = session;
   updateInfoDisplay();
   setLoading(true);
@@ -219,7 +237,32 @@ function selectLevel(level) {
 function selectEvent(event) {
   state.selectedEvent = event;
   updateInfoDisplay();
-  nextSkier();
+  startNewEntry();
+}
+
+export function inputBibNumber(num) {
+  if (state.currentBib.length < 3) {
+    state.currentBib =
+      state.currentBib === "0" && num !== "0" ? num : state.currentBib + num;
+    if (parseInt(state.currentBib) > 999) state.currentBib = "999";
+    document.getElementById("bib-display").textContent =
+      state.currentBib || "0";
+  }
+}
+
+export function clearBibInput() {
+  state.currentBib = "";
+  document.getElementById("bib-display").textContent = "0";
+}
+
+export function confirmBib() {
+  const bib = parseInt(state.currentBib, 10) || 0;
+  if (bib < 1 || bib > 999)
+    return alert("ゼッケン番号は1-999の範囲で入力してください");
+
+  // ゼッケンが確定したら、得点入力画面へ
+  setHeaderText("滑走者の得点を入力してください");
+  showScreen("score-screen");
 }
 
 export function inputNumber(num) {
@@ -243,34 +286,13 @@ export function confirmScore() {
   const score = parseInt(state.currentScore, 10) || 0;
   if (score < 0 || score > 99)
     return alert("得点は0-99の範囲で入力してください");
+
   state.confirmedScore = score;
-  setHeaderText("ゼッケン番号を入力してください");
-  showScreen("bib-screen");
-}
 
-export function inputBibNumber(num) {
-  if (state.currentBib.length < 3) {
-    state.currentBib =
-      state.currentBib === "0" && num !== "0" ? num : state.currentBib + num;
-    if (parseInt(state.currentBib) > 999) state.currentBib = "999";
-    document.getElementById("bib-display").textContent =
-      state.currentBib || "0";
-  }
-}
-
-export function clearBibInput() {
-  state.currentBib = "";
-  document.getElementById("bib-display").textContent = "0";
-}
-
-export function confirmBib() {
-  const bib = parseInt(state.currentBib, 10) || 0;
-  if (bib < 1 || bib > 999)
-    return alert("ゼッケン番号は1-999の範囲で入力してください");
-  document.getElementById("final-bib").textContent = String(bib).padStart(
-    3,
-    "0"
-  );
+  // 得点が確定したら、最終確認画面へ
+  document.getElementById("final-bib").textContent = String(
+    state.currentBib
+  ).padStart(3, "0");
   document.getElementById("final-score").textContent = state.confirmedScore;
   setHeaderText("採点内容を確認してください");
   showScreen("submit-screen");
@@ -322,14 +344,7 @@ function onSubmitSuccess(result) {
 }
 
 export function nextSkier() {
-  state.currentScore = "";
-  state.currentBib = "";
-  state.confirmedScore = 0;
-  clearInput();
-  clearBibInput();
-  document.getElementById("submit-status").innerHTML = "";
-  setHeaderText("滑走者の得点を入力してください");
-  showScreen("score-screen");
+  startNewEntry();
 }
 
 export function changeEvent() {
@@ -372,9 +387,9 @@ export function goBackToLevelSelect() {
   showScreen("event-screen");
 }
 
-export function goBack() {
-  setHeaderText("滑走者の得点を入力してください");
-  showScreen("score-screen");
+export function goBackToBibScreen() {
+  setHeaderText("ゼッケン番号を修正してください");
+  showScreen("bib-screen");
 }
 
 export function editEntry() {

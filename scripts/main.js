@@ -28,7 +28,7 @@ import {
   goBackToDashboard,
   goBackToDisciplineSelect,
   goBackToLevelSelect,
-  goBack,
+  goBackToBibScreen,
   editEntry,
   handleExportOrShare,
   handleUpdateSessionName,
@@ -126,8 +126,8 @@ function initializeEventListeners() {
     .getElementById("btn-score-confirm")
     ?.addEventListener("click", confirmScore);
   document
-    .getElementById("btn-change-event")
-    ?.addEventListener("click", changeEvent);
+    .getElementById("btn-score-back-to-bib")
+    ?.addEventListener("click", goBackToBibScreen);
 
   document.getElementById("bib-keypad")?.addEventListener("click", (e) => {
     const target = e.target;
@@ -142,8 +142,8 @@ function initializeEventListeners() {
     .getElementById("btn-bib-confirm")
     ?.addEventListener("click", confirmBib);
   document
-    .getElementById("btn-back-to-score")
-    ?.addEventListener("click", goBack);
+    .getElementById("btn-bib-back-to-event")
+    ?.addEventListener("click", changeEvent);
 
   // Submit Screen
   document
