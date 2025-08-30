@@ -24,42 +24,26 @@
                 <h1>採点業務を、<br>スマホひとつでシンプルに。</h1>
                 <p class="subtitle">リアルタイム集計で、検定会の運営をもっとスムーズにしませんか？</p>
             </div>
-
             <div class="features-section">
-                <div class="feature-item">
-                    <span class="feature-icon">📲</span>
-                    <h3>かんたん操作</h3>
-                    <p>直感的なボタン操作で、誰でも迷わず採点できます。</p>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">🔄</span>
-                    <h3>リアルタイム共有</h3>
-                    <p>採点結果は即座に集計。複数の検定員で同時に作業できます。</p>
-                </div>
-                <div class="feature-item">
-                    <span class="feature-icon">📄</span>
-                    <h3>ペーパーレス</h3>
-                    <p>集計用紙への記入や計算は不要。ミスなく効率的に集計できます。</p>
-                </div>
+                <div class="feature-item"><span class="feature-icon">📲</span><h3>かんたん操作</h3><p>直感的なボタン操作で、誰でも迷わず採点できます。</p></div>
+                <div class="feature-item"><span class="feature-icon">🔄</span><h3>リアルタイム共有</h3><p>採点結果は即座に集計。複数の検定員で同時に作業できます。</p></div>
+                <div class="feature-item"><span class="feature-icon">📄</span><h3>ペーパーレス</h3><p>集計用紙への記入や計算は不要。ミスなく効率的に集計できます。</p></div>
             </div>
-
             <div class="nav-buttons">
-                <button class="nav-btn primary" onclick="showScreen('signup-screen')">無料で始める</button>
-                <button class="nav-btn" onclick="showScreen('login-screen')">ログイン</button>
+                <button class="nav-btn primary" id="btn-landing-signup">無料で始める</button>
+                <button class="nav-btn" id="btn-landing-login">ログイン</button>
             </div>
         </div>
 
         <div class="screen" id="login-screen">
             <div class="instruction">ログイン</div>
             <div class="form-container">
-                <input type="email" id="login-email" placeholder="メールアドレス" autocomplete="email" oninput="clearLoginError()">
-                <input type="password" id="login-password" placeholder="パスワード" autocomplete="current-password" oninput="clearLoginError()">
-
+                <input type="email" id="login-email" placeholder="メールアドレス" autocomplete="email">
+                <input type="password" id="login-password" placeholder="パスワード" autocomplete="current-password">
                 <div class="nav-buttons">
-                    <button class="nav-btn primary" onclick="handleLogin()">ログイン</button>
-                    <button class="nav-btn" onclick="showScreen('signup-screen'); clearLoginError();">新規登録はこちら</button>
+                    <button class="nav-btn primary" id="btn-login">ログイン</button>
+                    <button class="nav-btn" id="btn-goto-signup">新規登録はこちら</button>
                 </div>
-
                 <div id="login-error-message"></div>
             </div>
         </div>
@@ -71,8 +55,8 @@
                 <input type="email" id="signup-email" placeholder="メールアドレス" autocomplete="email">
                 <input type="password" id="signup-password" placeholder="パスワード (6文字以上)" autocomplete="new-password">
                 <div class="nav-buttons">
-                    <button class="nav-btn primary" onclick="handleSignup()">登録する</button>
-                    <button class="nav-btn" onclick="showScreen('login-screen')">ログイン画面に戻る</button>
+                    <button class="nav-btn primary" id="btn-signup">登録する</button>
+                    <button class="nav-btn" id="btn-back-to-login">ログイン画面に戻る</button>
                 </div>
             </div>
         </div>
@@ -80,10 +64,10 @@
         <div class="screen" id="dashboard-screen">
             <div class="list-keypad" id="session-list"></div>
             <div class="nav-buttons">
-                <button class="nav-btn primary" onclick="showScreen('create-session-screen')">新しい検定を作成</button>
-                <button class="nav-btn" onclick="showScreen('join-session-screen')">コードで参加</button>
-                <button class="nav-btn" onclick="showAccountScreen()">アカウント設定</button>
-                <button class="nav-btn danger" onclick="handleLogout()">ログアウト</button>
+                <button class="nav-btn primary" id="btn-goto-create-session">新しい検定を作成</button>
+                <button class="nav-btn" id="btn-goto-join-session">コードで参加</button>
+                <button class="nav-btn" id="btn-goto-account">アカウント設定</button>
+                <button class="nav-btn danger" id="btn-logout">ログアウト</button>
             </div>
         </div>
 
@@ -92,8 +76,8 @@
             <div class="form-container">
                 <input type="text" id="session-name-input" placeholder="検定名 (例: 2025冬期検定)">
                 <div class="nav-buttons">
-                    <button class="nav-btn primary" onclick="handleCreateSession()">作成</button>
-                    <button class="nav-btn" onclick="showScreen('dashboard-screen')">戻る</button>
+                    <button class="nav-btn primary" id="btn-create-session">作成</button>
+                    <button class="nav-btn" id="btn-create-back-to-dash">戻る</button>
                 </div>
             </div>
         </div>
@@ -103,52 +87,51 @@
             <div class="form-container">
                 <input type="text" id="join-code-input" placeholder="6桁の参加コード" maxlength="6" style="text-transform: uppercase;">
                 <div class="nav-buttons">
-                    <button class="nav-btn primary" onclick="handleJoinSession()">参加</button>
-                    <button class="nav-btn" onclick="showScreen('dashboard-screen')">戻る</button>
+                    <button class="nav-btn primary" id="btn-join-session">参加</button>
+                    <button class="nav-btn" id="btn-join-back-to-dash">戻る</button>
                 </div>
             </div>
         </div>
 
         <div class="screen" id="discipline-screen">
             <div class="list-keypad" id="discipline-keypad"></div>
-            <div class="nav-buttons"><button class="nav-btn" onclick="goBackToDashboard()">検定選択に戻る</button></div>
+            <div class="nav-buttons"><button class="nav-btn" id="btn-discipline-back-to-dash">検定選択に戻る</button></div>
         </div>
 
         <div class="screen" id="level-screen">
             <div class="list-keypad" id="level-keypad"></div>
-            <div class="nav-buttons"><button class="nav-btn" onclick="goBackToDisciplineSelect()">種別の選択に戻る</button></div>
+            <div class="nav-buttons"><button class="nav-btn" id="btn-level-back-to-discipline">種別の選択に戻る</button></div>
         </div>
 
         <div class="screen" id="event-screen">
             <div class="list-keypad" id="event-keypad"></div>
-            <div class="nav-buttons"><button class="nav-btn" onclick="goBackToLevelSelect()">級の選択に戻る</button></div>
+            <div class="nav-buttons"><button class="nav-btn" id="btn-event-back-to-level">級の選択に戻る</button></div>
         </div>
 
         <div class="screen" id="score-screen">
             <div class="numeric-display" id="score-display">0</div>
-            <div class="numeric-keypad">
-                <button class="numeric-key" onclick="inputNumber('7')">7</button><button class="numeric-key" onclick="inputNumber('8')">8</button><button class="numeric-key" onclick="inputNumber('9')">9</button>
-                <button class="numeric-key" onclick="inputNumber('4')">4</button><button class="numeric-key" onclick="inputNumber('5')">5</button><button class="numeric-key" onclick="inputNumber('6')">6</button>
-                <button class="numeric-key" onclick="inputNumber('1')">1</button><button class="numeric-key" onclick="inputNumber('2')">2</button><button class="numeric-key" onclick="inputNumber('3')">3</button>
-                <button class="numeric-key" onclick="inputNumber('0')">0</button><button class="numeric-key spacer"></button>
-                <button class="numeric-key clear" onclick="clearInput()">C</button>
-                <button class="numeric-key confirm" onclick="confirmScore()">確定</button>
+            <div class="numeric-keypad" id="score-keypad">
+                <button class="numeric-key" data-value="7">7</button><button class="numeric-key" data-value="8">8</button><button class="numeric-key" data-value="9">9</button>
+                <button class="numeric-key" data-value="4">4</button><button class="numeric-key" data-value="5">5</button><button class="numeric-key" data-value="6">6</button>
+                <button class="numeric-key" data-value="1">1</button><button class="numeric-key" data-value="2">2</button><button class="numeric-key" data-value="3">3</button>
+                <button class="numeric-key" data-value="0">0</button><button class="numeric-key spacer"></button>
+                <button class="numeric-key clear" id="btn-score-clear">C</button>
+                <button class="numeric-key confirm" id="btn-score-confirm">確定</button>
             </div>
-            <div class="nav-buttons"><button class="nav-btn" onclick="changeEvent()">種目を変更</button></div>
+            <div class="nav-buttons"><button class="nav-btn" id="btn-change-event">種目を変更</button></div>
         </div>
 
         <div class="screen" id="bib-screen">
-            <!-- <div class="instruction">入力した得点: <strong id="confirmed-score"></strong></div> -->
             <div class="numeric-display" id="bib-display">0</div>
-            <div class="numeric-keypad">
-                <button class="numeric-key" onclick="inputBibNumber('7')">7</button><button class="numeric-key" onclick="inputBibNumber('8')">8</button><button class="numeric-key" onclick="inputBibNumber('9')">9</button>
-                <button class="numeric-key" onclick="inputBibNumber('4')">4</button><button class="numeric-key" onclick="inputBibNumber('5')">5</button><button class="numeric-key" onclick="inputBibNumber('6')">6</button>
-                <button class="numeric-key" onclick="inputBibNumber('1')">1</button><button class="numeric-key" onclick="inputBibNumber('2')">2</button><button class="numeric-key" onclick="inputBibNumber('3')">3</button>
-                <button class="numeric-key" onclick="inputBibNumber('0')">0</button><button class="numeric-key spacer"></button>
-                <button class="numeric-key clear" onclick="clearBibInput()">C</button>
-                <button class="numeric-key confirm" onclick="confirmBib()">確定</button>
+            <div class="numeric-keypad" id="bib-keypad">
+                <button class="numeric-key" data-value="7">7</button><button class="numeric-key" data-value="8">8</button><button class="numeric-key" data-value="9">9</button>
+                <button class="numeric-key" data-value="4">4</button><button class="numeric-key" data-value="5">5</button><button class="numeric-key" data-value="6">6</button>
+                <button class="numeric-key" data-value="1">1</button><button class="numeric-key" data-value="2">2</button><button class="numeric-key" data-value="3">3</button>
+                <button class="numeric-key" data-value="0">0</button><button class="numeric-key spacer"></button>
+                <button class="numeric-key clear" id="btn-bib-clear">C</button>
+                <button class="numeric-key confirm" id="btn-bib-confirm">確定</button>
             </div>
-            <div class="nav-buttons"><button class="nav-btn" onclick="goBack()">得点修正</button></div>
+            <div class="nav-buttons"><button class="nav-btn" id="btn-back-to-score">得点修正</button></div>
         </div>
 
         <div class="screen" id="submit-screen">
@@ -159,8 +142,8 @@
             </div>
             <div id="submit-status"></div>
             <div class="nav-buttons">
-                <button class="nav-btn" onclick="editEntry()">修正する</button>
-                <button class="nav-btn primary" onclick="submitEntry()">送信する</button>
+                <button class="nav-btn" id="btn-edit-entry">修正する</button>
+                <button class="nav-btn primary" id="btn-submit-entry">送信する</button>
             </div>
         </div>
 
@@ -171,43 +154,39 @@
                 <strong>ゼッケン<span id="completed-bib"></span>番: <span id="completed-score"></span>点</strong>
             </div>
             <div class="nav-buttons">
-                <button class="nav-btn primary" onclick="nextSkier()">次の滑走者</button>
-                <button class="nav-btn" id="share-button-complete" onclick="handleExportOrShare()">結果を共有</button>
+                <button class="nav-btn primary" id="btn-next-skier">次の滑走者</button>
+                <button class="nav-btn" id="share-button-complete">結果を共有</button>
             </div>
         </div>
         <div class="screen" id="confirm-screen">
             <div class="instruction" id="confirm-message"></div>
             <div class="nav-buttons">
-                <button class="nav-btn primary" onclick="executeConfirm()">はい</button>
-                <button class="nav-btn" onclick="cancelConfirm()">いいえ</button>
+                <button class="nav-btn primary" id="btn-confirm-yes">はい</button>
+                <button class="nav-btn" id="btn-confirm-no">いいえ</button>
             </div>
         </div>
 
         <div class="screen" id="account-screen">
             <div class="instruction">アカウント設定</div>
-
             <div class="form-container">
                 <label for="account-name" style="text-align: left; font-size: 15px; font-weight: 500; margin-bottom: -8px;">氏名</label>
                 <input type="text" id="account-name" placeholder="氏名" autocomplete="name">
                 <div class="nav-buttons" style="margin-top: 0;">
-                    <button class="nav-btn primary" onclick="handleUpdateName()">名前を更新</button>
+                    <button class="nav-btn primary" id="btn-update-name">名前を更新</button>
                 </div>
             </div>
-
             <hr style="width: 100%; border: none; border-top: 1px solid var(--separator-gray); margin: 24px 0;">
-
             <div class="form-container">
                 <label for="account-password" style="text-align: left; font-size: 15px; font-weight: 500; margin-bottom: -8px;">新しいパスワード</label>
                 <input type="password" id="account-password" placeholder="新しいパスワード (6文字以上)" autocomplete="new-password">
                 <input type="password" id="account-password-confirm" placeholder="新しいパスワード (確認)" autocomplete="new-password">
                 <div class="nav-buttons" style="margin-top: 0;">
-                    <button class="nav-btn primary" onclick="handleUpdatePassword()">パスワードを更新</button>
+                    <button class="nav-btn primary" id="btn-update-password">パスワードを更新</button>
                 </div>
             </div>
-
             <div class="nav-buttons">
-                <button class="nav-btn danger" onclick="showDeleteConfirm()">アカウントを削除</button>
-                <button class="nav-btn" onclick="goBackToDashboard()">検定選択に戻る</button>
+                <button class="nav-btn danger" id="btn-goto-delete-account">アカウントを削除</button>
+                <button class="nav-btn" id="btn-account-back-to-dash">検定選択に戻る</button>
             </div>
         </div>
 
@@ -217,53 +196,45 @@
                 この操作は取り消せません。作成した検定や採点データを含む、すべてのアカウント情報が完全に削除されます。
             </div>
             <div class="nav-buttons">
-                <button class="nav-btn danger" onclick="handleDeleteAccount()">はい、削除します</button>
-                <button class="nav-btn" onclick="cancelConfirm()">いいえ、キャンセルします</button>
+                <button class="nav-btn danger" id="btn-delete-account">はい、削除します</button>
+                <button class="nav-btn" id="btn-delete-account-cancel">いいえ、キャンセルします</button>
             </div>
         </div>
 
         <div class="screen" id="session-details-screen">
             <div class="instruction" id="session-details-title">検定の詳細</div>
-
             <div class="form-container">
                 <label for="session-details-name" style="text-align: left; font-size: 15px; font-weight: 500; margin-bottom: -8px;">検定名</label>
                 <input type="text" id="session-details-name" placeholder="検定名">
                 <div class="nav-buttons" style="margin-top: 0;">
-                    <button class="nav-btn primary" onclick="handleUpdateSessionName()">名前を更新</button>
+                    <button class="nav-btn primary" id="btn-update-session-name">名前を更新</button>
                 </div>
             </div>
-
             <hr style="width: 100%; border: none; border-top: 1px solid var(--separator-gray); margin: 24px 0;">
-
             <div>
                 <h3 style="text-align: left; font-size: 17px; margin-bottom: 12px;">参加中の検定員</h3>
-                <div id="session-participants-list" style="background: white; border-radius: 12px; padding: 16px; text-align: left; min-height: 50px;">
-                    </div>
+                <div id="session-participants-list" style="background: white; border-radius: 12px; padding: 16px; text-align: left; min-height: 50px;"></div>
             </div>
-
             <hr style="width: 100%; border: none; border-top: 1px solid var(--separator-gray); margin: 24px 0;">
-
             <div class="nav-buttons">
-                <button class="nav-btn danger" onclick="showDeleteSessionConfirm()">この検定を削除</button>
-            </div>
-
-            <div class="nav-buttons">
-                <button class="nav-btn" onclick="goBackToDashboard()">検定選択に戻る</button>
+                <button class="nav-btn danger" id="btn-goto-delete-session">この検定を削除</button>
+                <button class="nav-btn" id="btn-details-back-to-dash">検定選択に戻る</button>
             </div>
         </div>
+
         <div class="screen" id="delete-session-confirm-screen">
             <div class="instruction">本当にこの検定を削除しますか？</div>
             <div style="margin-bottom: 24px; color: var(--secondary-text);">
                 この操作は取り消せません。この検定に関連する全ての採点データが完全に削除されます。
             </div>
             <div class="nav-buttons">
-                <button class="nav-btn danger" onclick="handleDeleteSession()">はい、削除します</button>
-                <button class="nav-btn" onclick="cancelConfirm()">いいえ、キャンセルします</button>
+                <button class="nav-btn danger" id="btn-delete-session">はい、削除します</button>
+                <button class="nav-btn" id="btn-delete-session-cancel">いいえ、キャンセルします</button>
             </div>
         </div>
 
         <div class="loading-overlay" id="loading-overlay"><div class="loading"></div></div>
     </div>
-    <script src="/script.js"></script>
+    <script type="module" src="/scripts/main.js"></script>
 </body>
 </html>
