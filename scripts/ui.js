@@ -1,5 +1,19 @@
-// scripts/ui.js
+// scripts/ui.js （完全版）
 import { state } from "./state.js";
+
+export function updateScoreScreenButtons() {
+  const backToBibButton = document.getElementById("btn-score-back-to-bib");
+  if (!backToBibButton) return;
+
+  if (
+    state.currentSession?.is_multi_judge &&
+    state.currentUser?.id !== state.currentSession?.chief_judge_id
+  ) {
+    backToBibButton.style.display = "none";
+  } else {
+    backToBibButton.style.display = "block";
+  }
+}
 
 export function showScreen(screenId) {
   window.scrollTo(0, 0);
@@ -38,11 +52,26 @@ export function updateInfoDisplay() {
       state.currentUser?.full_name || "ログインしていません";
 
   const sessionInfo = document.getElementById("session-info");
-  if (sessionInfo)
-    sessionInfo.textContent = state.currentSession?.name || "未選択";
+  if (sessionInfo) {
+    sessionInfo.textContent =
+      state.currentSession?.session_name ||
+      state.currentSession?.name ||
+      "未選択";
+  }
 
   const selEl = document.getElementById("selection-info");
   if (selEl) selEl.textContent = getSelectionLabel();
+
+  // ▼▼▼ 変更箇所 ▼▼▼
+  const bibInfo = document.getElementById("bib-info");
+  if (bibInfo) {
+    if (state.currentBib) {
+      bibInfo.textContent = `| ゼッケン: ${state.currentBib}`;
+    } else {
+      bibInfo.textContent = "";
+    }
+  }
+  // ▲▲▲ 変更箇所 ▲▲▲
 }
 
 function getSelectionLabel() {
@@ -70,7 +99,6 @@ export function onSubmitError(error) {
   const submitStatus = document.getElementById("submit-status");
   if (submitStatus) {
     submitStatus.innerHTML = `<div class="error">送信エラー: ${error.message}<br><button class="nav-btn" id="btn-submit-retry">再試行</button></div>`;
-    // リトライボタンにもイベントリスナーを再設定する必要がある
     document
       .getElementById("btn-submit-retry")
       ?.addEventListener("click", () =>

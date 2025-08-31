@@ -11,24 +11,143 @@ import {
   onSubmitError,
   showConfirmDialog,
   copyJoinCode,
+  updateScoreScreenButtons,
 } from "./ui.js";
 
-// === 新しいエントリーポイント ===
-function startNewEntry() {
-  state.currentScore = "";
-  state.currentBib = "";
-  state.confirmedScore = 0;
+let pollingInterval = null;
+let lastPromptId = null;
 
-  const bibDisplay = document.getElementById("bib-display");
-  if (bibDisplay) bibDisplay.textContent = "0";
+function startPollingForPrompt() {
+  stopPolling();
 
-  const scoreDisplay = document.getElementById("score-display");
-  if (scoreDisplay) scoreDisplay.textContent = "0";
+  if (!state.currentSession) return;
 
-  document.getElementById("submit-status").innerHTML = "";
+  pollingInterval = setInterval(async () => {
+    try {
+      const response = await fetch(
+        `/api/getScoringPrompt?sessionId=${state.currentSession.id}`
+      );
+      if (!response.ok) return;
 
-  setHeaderText("ゼッケン番号を入力してください");
-  showScreen("bib-screen");
+      const prompt = await response.json();
+
+      if (prompt && prompt.id !== lastPromptId) {
+        lastPromptId = prompt.id;
+
+        if (prompt.status === "canceled") {
+          stopPolling();
+          alert("主任検定員が採点を中断しました。準備画面に戻ります。");
+          setHeaderText("準備中…");
+          showScreen("judge-wait-screen");
+          startPollingForPrompt();
+          return;
+        }
+
+        // ▼▼▼ 変更箇所：ここではポーリングを停止しない ▼▼▼
+        // stopPolling();
+        // ▲▲▲ 変更箇所 ▲▲▲
+
+        state.currentScore = "";
+        state.confirmedScore = 0;
+
+        state.selectedDiscipline = prompt.discipline;
+        state.selectedLevel = prompt.level;
+        state.selectedEvent = prompt.event_name;
+        state.currentBib = String(prompt.bib_number);
+
+        updateInfoDisplay();
+        document.getElementById("score-display").textContent = "0";
+
+        updateScoreScreenButtons();
+
+        setHeaderText("滑走者の得点を入力してください");
+        showScreen("score-screen");
+      }
+    } catch (error) {
+      console.error("Polling error:", error);
+    }
+  }, 3000);
+}
+
+function stopPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+}
+
+async function broadcastCancellationSignal() {
+  if (
+    !state.currentSession.is_multi_judge ||
+    state.currentUser.id !== state.currentSession.chief_judge_id
+  ) {
+    return true;
+  }
+
+  setLoading(true);
+  try {
+    const {
+      data: { session: userSession },
+    } = await supabase.auth.getSession();
+    if (!userSession) throw new Error("ログインしていません。");
+
+    const promptData = {
+      session_id: state.currentSession.id,
+      discipline: "CANCELED",
+      level: "CANCELED",
+      event_name: "CANCELED",
+      bib_number: 0,
+      status: "canceled",
+    };
+
+    const response = await fetch("/api/createScoringPrompt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userToken: userSession.access_token, promptData }),
+    });
+
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.error);
+    }
+    return true;
+  } catch (error) {
+    alert("他の検定員へのキャンセル通知に失敗しました: " + error.message);
+    return false;
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function appointChief(userId) {
+  setLoading(true);
+  try {
+    if (!state.currentSession)
+      throw new Error("対象の検定が選択されていません。");
+    const {
+      data: { session: userSession },
+    } = await supabase.auth.getSession();
+    if (!userSession) throw new Error("ログインしていません。");
+    const response = await fetch("/api/updateSessionSettings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: state.currentSession.id,
+        userToken: userSession.access_token,
+        settings: { chief_judge_id: userId },
+      }),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.error);
+    }
+    alert("主任を任命しました。");
+    await showSessionDetails(state.currentSession);
+  } catch (error) {
+    alert("任命に失敗しました: " + error.message);
+  } finally {
+    setLoading(false);
+  }
 }
 
 export async function loadDashboard() {
@@ -40,36 +159,26 @@ export async function loadDashboard() {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("ログインしていません。");
-
     const response = await fetch(
       `/api/getMySessions?userToken=${session.access_token}`
     );
     if (response.status === 401) throw new Error("認証されていません。");
-
     const mySessions = await response.json();
     if (!response.ok)
       throw new Error(mySessions.error || "検定の読み込みに失敗しました。");
-
     const sessionList = document.getElementById("session-list");
     if (!sessionList) return;
     sessionList.innerHTML = "";
-
     if (mySessions && mySessions.length > 0) {
       mySessions.forEach((s) => {
         const button = document.createElement("button");
         button.className = "key select-item";
         button.addEventListener("click", () => selectSession(s));
-
-        button.innerHTML = `<div class="session-name">${s.name}</div>
-            <div class="join-code-wrapper">
-                <span class="join-code">コード: ${s.join_code}</span>
-            </div>`;
-
+        button.innerHTML = `<div class="session-name">${s.name}</div><div class="join-code-wrapper"><span class="join-code">コード: ${s.join_code}</span></div>`;
         const copyBtn = document.createElement("div");
         copyBtn.className = "copy-btn";
         copyBtn.textContent = "copy";
         copyBtn.addEventListener("click", (e) => copyJoinCode(e, s.join_code));
-
         const detailsButton = document.createElement("div");
         detailsButton.className = "details-btn";
         detailsButton.textContent = "詳細";
@@ -77,7 +186,6 @@ export async function loadDashboard() {
           event.stopPropagation();
           showSessionDetails(s);
         });
-
         const wrapper = button.querySelector(".join-code-wrapper");
         if (wrapper) {
           wrapper.appendChild(copyBtn);
@@ -113,7 +221,6 @@ export async function handleCreateSession() {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) throw new Error("ログインしていません。");
-
     const response = await fetch("/api/createSession", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -156,25 +263,48 @@ export async function handleJoinSession() {
 }
 
 async function selectSession(session) {
-  state.currentSession = session;
-  updateInfoDisplay();
+  stopPolling();
+  lastPromptId = null;
+
   setLoading(true);
   try {
-    const { data, error } = await supabase.from("events").select("*");
+    const response = await fetch(
+      `/api/getSessionDetails?sessionId=${session.id}`
+    );
+    const fullSessionData = await response.json();
+    if (!response.ok) throw new Error(fullSessionData.error);
+
+    state.currentSession = fullSessionData;
+    updateInfoDisplay();
+
+    const { data: events, error } = await supabase.from("events").select("*");
     if (error) throw error;
     state.allTestEvents = {};
-    data.forEach((e) => {
+    events.forEach((e) => {
       if (!state.allTestEvents[e.discipline])
         state.allTestEvents[e.discipline] = {};
       if (!state.allTestEvents[e.discipline][e.level])
         state.allTestEvents[e.discipline][e.level] = [];
       state.allTestEvents[e.discipline][e.level].push(e.name);
     });
-    setupDisciplineScreen();
-    setHeaderText("種別を選択してください");
-    showScreen("discipline-screen");
+
+    if (state.currentSession.is_multi_judge) {
+      if (state.currentUser.id === state.currentSession.chief_judge_id) {
+        setupDisciplineScreen();
+        setHeaderText("種別を選択してください (主任)");
+        showScreen("discipline-screen");
+      } else {
+        setHeaderText("準備中…");
+        showScreen("judge-wait-screen");
+        startPollingForPrompt();
+      }
+    } else {
+      setupDisciplineScreen();
+      setHeaderText("種別を選択してください");
+      showScreen("discipline-screen");
+    }
   } catch (error) {
-    alert("種目データの読み込みエラー: " + error.message);
+    alert("検定情報の読み込みエラー: " + error.message);
   } finally {
     setLoading(false);
   }
@@ -240,6 +370,24 @@ function selectEvent(event) {
   startNewEntry();
 }
 
+function startNewEntry() {
+  state.currentScore = "";
+  state.currentBib = "";
+  state.confirmedScore = 0;
+
+  const bibDisplay = document.getElementById("bib-display");
+  if (bibDisplay) bibDisplay.textContent = "0";
+
+  const scoreDisplay = document.getElementById("score-display");
+  if (scoreDisplay) scoreDisplay.textContent = "0";
+
+  document.getElementById("submit-status").innerHTML = "";
+
+  updateInfoDisplay();
+  setHeaderText("ゼッケン番号を入力してください");
+  showScreen("bib-screen");
+}
+
 export function inputBibNumber(num) {
   if (state.currentBib.length < 3) {
     state.currentBib =
@@ -247,20 +395,63 @@ export function inputBibNumber(num) {
     if (parseInt(state.currentBib) > 999) state.currentBib = "999";
     document.getElementById("bib-display").textContent =
       state.currentBib || "0";
+    updateInfoDisplay();
   }
 }
 
 export function clearBibInput() {
   state.currentBib = "";
   document.getElementById("bib-display").textContent = "0";
+  updateInfoDisplay();
 }
 
-export function confirmBib() {
+export async function confirmBib() {
   const bib = parseInt(state.currentBib, 10) || 0;
   if (bib < 1 || bib > 999)
     return alert("ゼッケン番号は1-999の範囲で入力してください");
 
-  // ゼッケンが確定したら、得点入力画面へ
+  if (
+    state.currentSession.is_multi_judge &&
+    state.currentUser.id === state.currentSession.chief_judge_id
+  ) {
+    setLoading(true);
+    try {
+      const {
+        data: { session: userSession },
+      } = await supabase.auth.getSession();
+      if (!userSession) throw new Error("ログインしていません。");
+
+      const promptData = {
+        session_id: state.currentSession.id,
+        discipline: state.selectedDiscipline,
+        level: state.selectedLevel,
+        event_name: state.selectedEvent,
+        bib_number: bib,
+      };
+
+      const response = await fetch("/api/createScoringPrompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userToken: userSession.access_token,
+          promptData: promptData,
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      alert("他の検定員への通知に失敗しました: " + error.message);
+      setLoading(false);
+      return;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  updateScoreScreenButtons();
   setHeaderText("滑走者の得点を入力してください");
   showScreen("score-screen");
 }
@@ -289,7 +480,6 @@ export function confirmScore() {
 
   state.confirmedScore = score;
 
-  // 得点が確定したら、最終確認画面へ
   document.getElementById("final-bib").textContent = String(
     state.currentBib
   ).padStart(3, "0");
@@ -299,6 +489,9 @@ export function confirmScore() {
 }
 
 export async function submitEntry() {
+  // ▼▼▼ 変更箇所 ▼▼▼
+  stopPolling(); // 得点を送信したら、この選手に対する監視は終了
+  // ▲▲▲ 変更箇所 ▲▲▲
   const submitStatus = document.getElementById("submit-status");
   if (!submitStatus) return;
   submitStatus.innerHTML =
@@ -338,23 +531,53 @@ function onSubmitSuccess(result) {
   document.getElementById("completed-bib").textContent = String(
     result.bib
   ).padStart(3, "0");
-  document.getElementById("completed-score").textContent = result.score;
+  document.getElementById("completed-score").textContent = String(result.score);
   setHeaderText("送信完了しました");
   showScreen("complete-screen");
 }
 
 export function nextSkier() {
-  startNewEntry();
+  document.getElementById("submit-status").innerHTML = "";
+  if (
+    state.currentSession.is_multi_judge &&
+    state.currentUser.id === state.currentSession.chief_judge_id
+  ) {
+    startNewEntry();
+  } else if (state.currentSession.is_multi_judge) {
+    state.currentBib = "";
+    updateInfoDisplay();
+    setHeaderText("準備中…");
+    showScreen("judge-wait-screen");
+    startPollingForPrompt();
+  } else {
+    startNewEntry();
+  }
 }
 
 export function changeEvent() {
-  showConfirmDialog("現在の採点を中断し、種目選択に戻りますか？", () => {
+  showConfirmDialog("現在の採点を中断し、種目選択に戻りますか？", async () => {
+    const broadcastSuccess = await broadcastCancellationSignal();
+    if (!broadcastSuccess) return;
+
+    const isChief =
+      state.currentSession.is_multi_judge &&
+      state.currentUser.id === state.currentSession.chief_judge_id;
+    const isSingleMode = !state.currentSession.is_multi_judge;
+
     state.selectedDiscipline = "";
     state.selectedLevel = "";
     state.selectedEvent = "";
+    state.currentBib = "";
     updateInfoDisplay();
-    setHeaderText("種別を選択してください");
-    showScreen("discipline-screen");
+
+    if (isChief || isSingleMode) {
+      setHeaderText("種別を選択してください");
+      showScreen("discipline-screen");
+    } else {
+      setHeaderText("準備中…");
+      showScreen("judge-wait-screen");
+      startPollingForPrompt();
+    }
   });
 }
 
@@ -364,7 +587,9 @@ export function executeConfirm() {
 }
 
 export function goBackToDashboard() {
+  stopPolling();
   state.selectedEvent = "";
+  state.currentBib = "";
   updateInfoDisplay();
   setHeaderText("検定を選択");
   showScreen("dashboard-screen");
@@ -374,6 +599,7 @@ export function goBackToDisciplineSelect() {
   state.selectedDiscipline = "";
   state.selectedLevel = "";
   state.selectedEvent = "";
+  state.currentBib = "";
   updateInfoDisplay();
   setHeaderText("種別を選択してください");
   showScreen("discipline-screen");
@@ -382,12 +608,16 @@ export function goBackToDisciplineSelect() {
 export function goBackToLevelSelect() {
   state.selectedLevel = "";
   state.selectedEvent = "";
+  state.currentBib = "";
   updateInfoDisplay();
   setHeaderText("級を選択してください");
   showScreen("event-screen");
 }
 
-export function goBackToBibScreen() {
+export async function goBackToBibScreen() {
+  const broadcastSuccess = await broadcastCancellationSignal();
+  if (!broadcastSuccess) return;
+
   setHeaderText("ゼッケン番号を修正してください");
   showScreen("bib-screen");
 }
@@ -412,6 +642,7 @@ export async function handleExportOrShare() {
       throw new Error(results.error || "結果の取得に失敗しました。");
     if (!results || results.length === 0) {
       alert("エクスポート/共有するデータがありません。");
+      setLoading(false);
       return;
     }
     const exportData = results.map((item) => ({
@@ -428,11 +659,9 @@ export async function handleExportOrShare() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "採点結果");
     const fileName = `${state.currentSession.name}_採点結果.xlsx`;
+
     if (navigator.share) {
-      const wbout = XLSX.utils.write(workbook, {
-        bookType: "xlsx",
-        type: "array",
-      });
+      const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
       const blob = new Blob([wbout], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
@@ -468,32 +697,101 @@ export async function showSessionDetails(session) {
     );
     const data = await response.json();
     if (!response.ok) throw new Error(data.error);
-
+    state.currentSession = { ...state.currentSession, ...data };
     document.getElementById(
       "session-details-title"
     ).textContent = `${data.session_name} の詳細`;
     document.getElementById("session-details-name").value = data.session_name;
-
+    const toggle = document.getElementById("multi-judge-toggle");
+    toggle.checked = data.is_multi_judge;
+    const requiredJudgesContainer = document.getElementById(
+      "required-judges-container"
+    );
+    const requiredJudgesInput = document.getElementById(
+      "required-judges-input"
+    );
+    if (data.is_multi_judge) {
+      requiredJudgesContainer.style.display = "flex";
+      requiredJudgesInput.value = data.required_judges || 1;
+    } else {
+      requiredJudgesContainer.style.display = "none";
+    }
     const listEl = document.getElementById("session-participants-list");
     listEl.innerHTML = "";
     if (data.participants && data.participants.length > 0) {
-      const ul = document.createElement("ul");
-      ul.style.cssText = "list-style: none; padding-left: 0; margin: 0;";
       data.participants.forEach((p) => {
-        const li = document.createElement("li");
-        li.textContent = p.full_name;
-        li.style.padding = "4px 0";
-        ul.appendChild(li);
+        const itemEl = document.createElement("div");
+        itemEl.className = "participant-item";
+        const nameEl = document.createElement("div");
+        nameEl.className = "participant-name";
+        nameEl.textContent = p.full_name;
+        if (p.user_id === data.chief_judge_id) {
+          const badge = document.createElement("span");
+          badge.className = "chief-badge";
+          badge.textContent = "(主任)";
+          nameEl.appendChild(badge);
+        }
+        itemEl.appendChild(nameEl);
+        if (state.currentUser.id === data.created_by) {
+          const appointBtn = document.createElement("button");
+          appointBtn.className = "appoint-btn";
+          appointBtn.textContent =
+            p.user_id === data.chief_judge_id ? "任命済み" : "主任に任命";
+          appointBtn.dataset.userId = p.user_id;
+          if (p.user_id === data.chief_judge_id) {
+            appointBtn.disabled = true;
+          }
+          itemEl.appendChild(appointBtn);
+        }
+        listEl.appendChild(itemEl);
       });
-      listEl.appendChild(ul);
     } else {
-      listEl.textContent = "参加者はいません。";
+      listEl.innerHTML = '<p style="padding: 12px 0;">参加者はいません。</p>';
     }
     setHeaderText("検定の詳細");
     showScreen("session-details-screen");
   } catch (error) {
     alert("詳細の読み込みに失敗しました: " + error.message);
     goBackToDashboard();
+  } finally {
+    setLoading(false);
+  }
+}
+
+export async function handleUpdateSessionSettings() {
+  setLoading(true);
+  try {
+    if (!state.currentSession)
+      throw new Error("対象の検定が選択されていません。");
+    const {
+      data: { session: userSession },
+    } = await supabase.auth.getSession();
+    if (!userSession) throw new Error("ログインしていません。");
+    const newSettings = {
+      name: document.getElementById("session-details-name").value,
+      is_multi_judge: document.getElementById("multi-judge-toggle").checked,
+      required_judges: parseInt(
+        document.getElementById("required-judges-input").value,
+        10
+      ),
+    };
+    const response = await fetch("/api/updateSessionSettings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: state.currentSession.id,
+        userToken: userSession.access_token,
+        settings: newSettings,
+      }),
+    });
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.error);
+    }
+    alert("設定を保存しました。");
+    await loadDashboard();
+  } catch (error) {
+    alert("設定の保存に失敗しました: " + error.message);
   } finally {
     setLoading(false);
   }
@@ -562,3 +860,5 @@ export async function handleDeleteSession() {
     setLoading(false);
   }
 }
+
+export { appointChief };

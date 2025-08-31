@@ -31,9 +31,10 @@ import {
   goBackToBibScreen,
   editEntry,
   handleExportOrShare,
-  handleUpdateSessionName,
+  handleUpdateSessionSettings,
   showDeleteSessionConfirm,
   handleDeleteSession,
+  appointChief,
 } from "./session.js";
 import {
   showScreen,
@@ -86,6 +87,11 @@ function initializeEventListeners() {
   document
     .getElementById("btn-goto-account")
     ?.addEventListener("click", showAccountScreen);
+
+  // Wait Screen
+  document
+    .getElementById("btn-wait-back-to-dash")
+    ?.addEventListener("click", goBackToDashboard);
 
   // Create/Join Session Screens
   document
@@ -193,14 +199,34 @@ function initializeEventListeners() {
 
   // Session Details Screen
   document
-    .getElementById("btn-update-session-name")
-    ?.addEventListener("click", handleUpdateSessionName);
+    .getElementById("btn-save-session-settings")
+    ?.addEventListener("click", handleUpdateSessionSettings);
   document
     .getElementById("btn-goto-delete-session")
     ?.addEventListener("click", showDeleteSessionConfirm);
   document
     .getElementById("btn-details-back-to-dash")
     ?.addEventListener("click", goBackToDashboard);
+  document
+    .getElementById("session-participants-list")
+    ?.addEventListener("click", (e) => {
+      if (e.target.matches(".appoint-btn") && !e.target.disabled) {
+        const userId = e.target.dataset.userId;
+        if (userId) {
+          appointChief(userId);
+        }
+      }
+    });
+  document
+    .getElementById("multi-judge-toggle")
+    ?.addEventListener("change", (e) => {
+      const container = document.getElementById("required-judges-container");
+      if (e.target.checked) {
+        container.style.display = "flex";
+      } else {
+        container.style.display = "none";
+      }
+    });
 
   // Delete Session Confirm Screen
   document

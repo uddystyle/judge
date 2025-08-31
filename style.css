@@ -321,3 +321,133 @@ body {
         font-size: 20px;
     }
 }
+
+.form-label {
+    text-align: left;
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: -8px;
+}
+
+.divider {
+    width: 100%;
+    border: none;
+    border-top: 1px solid var(--separator-gray);
+    margin: 24px 0;
+}
+
+.settings-section {
+    width: 100%;
+    text-align: left;
+}
+
+.settings-title {
+    font-size: 17px;
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.short-input {
+    width: 70px;
+    padding: 10px !important;
+    text-align: center;
+    background-color: white;
+    border: 1px solid var(--separator-gray);
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 51px;
+    height: 31px;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-switch label {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--keypad-bg);
+    transition: .4s;
+    border-radius: 34px;
+}
+.toggle-switch label:before {
+    position: absolute;
+    content: "";
+    height: 27px;
+    width: 27px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.toggle-switch input:checked + label {
+    background-color: var(--ios-green);
+}
+.toggle-switch input:checked + label:before {
+    transform: translateX(20px);
+}
+
+/* Participants List */
+.participants-container {
+    background: white;
+    border-radius: 12px;
+    padding: 8px 16px;
+}
+.participant-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--separator-gray);
+}
+.participant-item:last-child {
+    border-bottom: none;
+}
+.participant-name {
+    font-weight: 500;
+}
+.chief-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ios-green);
+    margin-left: 8px;
+}
+.appoint-btn {
+    background-color: var(--keypad-bg);
+    color: var(--primary-text);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.appoint-btn.appointed {
+    background-color: var(--ios-blue);
+    color: white;
+}
+.appoint-btn:disabled {
+    background-color: var(--light-gray);
+    color: var(--secondary-text);
+    cursor: default;
+}
