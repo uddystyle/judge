@@ -1,4 +1,4 @@
-// scripts/session.js
+// scripts/session.js (完全版)
 import { supabase } from "./supabase.js";
 import { state } from "./state.js";
 import {
@@ -22,30 +22,26 @@ function startPollingForPrompt() {
 
   if (!state.currentSession) return;
 
-  // ▼▼▼ 変更箇所 ▼▼▼
-  // リロードしても記憶が残るようにsessionStorageから前回のIDを読み込む
   lastPromptId = sessionStorage.getItem("lastPromptId");
-  // ▲▲▲ 変更箇所 ▲▲▲
 
   pollingInterval = setInterval(async () => {
     try {
+      // ▼▼▼ 変更箇所：APIにlastPromptIdを付けて問い合わせる ▼▼▼
       const response = await fetch(
-        `/api/getScoringPrompt?sessionId=${state.currentSession.id}`
+        `/api/getScoringPrompt?sessionId=${state.currentSession.id}&lastSeenId=${lastPromptId}`
       );
+      // ▲▲▲ 変更箇所 ▲▲▲
       if (!response.ok) return;
 
       const prompt = await response.json();
 
-      if (prompt && prompt.id != lastPromptId) {
-        // != を使用して型変換を許容
-        // ▼▼▼ 変更箇所 ▼▼▼
+      // ▼▼▼ 変更箇所：条件を「promptが存在するか」のみに変更 ▼▼▼
+      if (prompt) {
         lastPromptId = prompt.id;
-        sessionStorage.setItem("lastPromptId", lastPromptId); // 処理済みのIDを記録
+        sessionStorage.setItem("lastPromptId", lastPromptId);
         // ▲▲▲ 変更箇所 ▲▲▲
 
         stopPolling();
-
-        console.log("新しい採点プロンプトを受信:", prompt);
 
         state.currentScore = "";
         state.confirmedScore = 0;
@@ -264,11 +260,8 @@ export async function handleJoinSession() {
 
 async function selectSession(session) {
   stopPolling();
-  // ▼▼▼ 変更箇所 ▼▼▼
-  // 新しいセッションを選択する際は、前回の記録をクリアする
   sessionStorage.removeItem("lastPromptId");
   lastPromptId = null;
-  // ▲▲▲ 変更箇所 ▲▲▲
 
   setLoading(true);
   try {
@@ -590,10 +583,8 @@ export function executeConfirm() {
 
 export function goBackToDashboard() {
   stopPolling();
-  // ▼▼▼ 変更箇所 ▼▼▼
   sessionStorage.removeItem("lastPromptId");
   lastPromptId = null;
-  // ▲▲▲ 変更箇所 ▲▲▲
   state.selectedEvent = "";
   state.currentBib = "";
   updateInfoDisplay();
