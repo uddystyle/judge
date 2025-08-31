@@ -22,10 +22,8 @@ function startPollingForPrompt() {
 
   if (!state.currentSession) return;
 
-  // ▼▼▼ 変更箇所：セッションIDを含んだキーで記録を読み込む ▼▼▼
   const storageKey = `lastPromptId_${state.currentSession.id}`;
   lastPromptId = sessionStorage.getItem(storageKey);
-  // ▲▲▲ 変更箇所 ▲▲▲
 
   pollingInterval = setInterval(async () => {
     try {
@@ -36,11 +34,10 @@ function startPollingForPrompt() {
 
       const prompt = await response.json();
 
+      // APIが新しいプロンプトを返した場合のみ処理を実行する
       if (prompt) {
-        // ▼▼▼ 変更箇所：セッションIDを含んだキーで記録を書き込む ▼▼▼
         lastPromptId = prompt.id;
         sessionStorage.setItem(storageKey, lastPromptId);
-        // ▲▲▲ 変更箇所 ▲▲▲
 
         stopPolling();
 

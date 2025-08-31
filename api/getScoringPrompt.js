@@ -1,9 +1,8 @@
-// api/getScoringPrompt.js (完全版)
 const { createClient } = require("@supabase/supabase-js");
 
 module.exports = async (req, res) => {
   try {
-    const { sessionId, lastSeenId } = req.query; // lastSeenIdを受け取る
+    const { sessionId, lastSeenId } = req.query;
     if (!sessionId) {
       return res.status(400).json({ error: "セッションIDが必要です。" });
     }
@@ -13,32 +12,32 @@ module.exports = async (req, res) => {
       process.env.SUPABASE_KEY
     );
 
-    // ▼▼▼ 変更箇所：クエリを全面的に変更 ▼▼▼
-    let query = supabase
+    // 手順1: sessionsテーブルから現在のactive_prompt_idを取得
+    const { data: sessionData, error: sessionError } = await supabase
+      .from("sessions")
+      .select("active_prompt_id")
+      .eq("id", sessionId)
+      .single();
+
+    if (sessionError) throw sessionError;
+
+    const activePromptId = sessionData.active_prompt_id;
+
+    // アクティブな指示がない、または最後に見た指示と同じ場合はnullを返す
+    if (!activePromptId || activePromptId == lastSeenId) {
+      return res.status(200).json(null);
+    }
+
+    // 新しいアクティブな指示があれば、その詳細を取得して返す
+    const { data: promptData, error: promptError } = await supabase
       .from("scoring_prompts")
       .select("*")
-      .eq("session_id", sessionId);
+      .eq("id", activePromptId)
+      .single();
 
-    // もしlastSeenIdが提供されていれば、それより大きいIDのものを探す
-    if (lastSeenId && lastSeenId !== "null") {
-      query = query.gt("id", lastSeenId);
-    }
+    if (promptError) throw promptError;
 
-    // IDが最も小さい（＝次の）プロンプトを1件だけ取得
-    query = query.order("id", { ascending: true }).limit(1).single();
-
-    const { data, error } = await query;
-    // ▲▲▲ 変更箇所 ▲▲▲
-
-    if (error) {
-      if (error.code === "PGRST116") {
-        // 見つからない場合は正常
-        return res.status(200).json(null);
-      }
-      throw error;
-    }
-
-    res.status(200).json(data);
+    res.status(200).json(promptData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -1,4 +1,3 @@
-// api/createScoringPrompt.js
 const { createClient } = require("@supabase/supabase-js");
 
 module.exports = async (req, res) => {
@@ -12,13 +11,11 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: "必須データが不足しています。" });
     }
 
-    // 管理者権限でSupabaseクライアントを初期化
     const supabaseAdmin = createClient(
       process.env.SUPABASE_URL,
       process.env.SUPABASE_KEY
     );
 
-    // 1. ユーザーを認証
     const {
       data: { user },
     } = await supabaseAdmin.auth.getUser(userToken);
@@ -26,7 +23,6 @@ module.exports = async (req, res) => {
       return res.status(401).json({ error: "認証されていません。" });
     }
 
-    // 2. 検証：ユーザーが本当にそのセッションの主任検定員か確認
     const { data: session, error: sessionError } = await supabaseAdmin
       .from("sessions")
       .select("chief_judge_id")
@@ -34,21 +30,28 @@ module.exports = async (req, res) => {
       .single();
 
     if (sessionError) throw sessionError;
-
     if (session.chief_judge_id !== user.id) {
-      return res
-        .status(403)
-        .json({
-          error: "この操作を行う権限がありません（主任検定員ではありません）。",
-        });
+      return res.status(403).json({
+        error: "この操作を行う権限がありません（主任検定員ではありません）。",
+      });
     }
 
-    // 3. 検証が通れば、管理者としてscoring_promptsに書き込む
-    const { error: insertError } = await supabaseAdmin
+    // 手順1: scoring_promptsに新しい指示を書き込む
+    const { data: newPrompt, error: insertError } = await supabaseAdmin
       .from("scoring_prompts")
-      .insert(promptData);
+      .insert(promptData)
+      .select()
+      .single();
 
     if (insertError) throw insertError;
+
+    // 手順2: sessionsテーブルのactive_prompt_idを、今作成した指示のIDに更新する
+    const { error: updateError } = await supabaseAdmin
+      .from("sessions")
+      .update({ active_prompt_id: newPrompt.id })
+      .eq("id", promptData.session_id);
+
+    if (updateError) throw updateError;
 
     res.status(200).json({ success: true });
   } catch (error) {
