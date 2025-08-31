@@ -1,4 +1,4 @@
-// scripts/session.js (完全版)
+// scripts/session.js
 import { supabase } from "./supabase.js";
 import { state } from "./state.js";
 import {
@@ -22,26 +22,35 @@ function startPollingForPrompt() {
 
   if (!state.currentSession) return;
 
-  lastPromptId = sessionStorage.getItem("lastPromptId");
+  // ▼▼▼ 変更箇所：セッションIDを含んだキーで記録を読み込む ▼▼▼
+  const storageKey = `lastPromptId_${state.currentSession.id}`;
+  lastPromptId = sessionStorage.getItem(storageKey);
+  // ▲▲▲ 変更箇所 ▲▲▲
 
   pollingInterval = setInterval(async () => {
     try {
-      // ▼▼▼ 変更箇所：APIにlastPromptIdを付けて問い合わせる ▼▼▼
       const response = await fetch(
         `/api/getScoringPrompt?sessionId=${state.currentSession.id}&lastSeenId=${lastPromptId}`
       );
-      // ▲▲▲ 変更箇所 ▲▲▲
       if (!response.ok) return;
 
       const prompt = await response.json();
 
-      // ▼▼▼ 変更箇所：条件を「promptが存在するか」のみに変更 ▼▼▼
       if (prompt) {
+        // ▼▼▼ 変更箇所：セッションIDを含んだキーで記録を書き込む ▼▼▼
         lastPromptId = prompt.id;
-        sessionStorage.setItem("lastPromptId", lastPromptId);
+        sessionStorage.setItem(storageKey, lastPromptId);
         // ▲▲▲ 変更箇所 ▲▲▲
 
         stopPolling();
+
+        if (prompt.status === "canceled") {
+          alert("主任検定員が採点を中断しました。準備画面に戻ります。");
+          setHeaderText("準備中…");
+          showScreen("judge-wait-screen");
+          startPollingForPrompt();
+          return;
+        }
 
         state.currentScore = "";
         state.confirmedScore = 0;
@@ -260,8 +269,11 @@ export async function handleJoinSession() {
 
 async function selectSession(session) {
   stopPolling();
-  sessionStorage.removeItem("lastPromptId");
+  // ▼▼▼ 変更箇所：どのセッションの記録も一旦リセットする ▼▼▼
+  // この時点ではセッションIDが不明なため、キーを特定できないので何もしない。
+  // lastPromptIdはポーリング開始時に読み込まれるのでここではリセット不要。
   lastPromptId = null;
+  // ▲▲▲ 変更箇所 ▲▲▲
 
   setLoading(true);
   try {
@@ -287,6 +299,8 @@ async function selectSession(session) {
 
     if (state.currentSession.is_multi_judge) {
       if (state.currentUser.id === state.currentSession.chief_judge_id) {
+        // 主任の場合は、このセッションの記録をクリアしておく
+        sessionStorage.removeItem(`lastPromptId_${state.currentSession.id}`);
         setupDisciplineScreen();
         setHeaderText("種別を選択してください (主任)");
         showScreen("discipline-screen");
@@ -583,7 +597,9 @@ export function executeConfirm() {
 
 export function goBackToDashboard() {
   stopPolling();
-  sessionStorage.removeItem("lastPromptId");
+  if (state.currentSession) {
+    sessionStorage.removeItem(`lastPromptId_${state.currentSession.id}`);
+  }
   lastPromptId = null;
   state.selectedEvent = "";
   state.currentBib = "";
