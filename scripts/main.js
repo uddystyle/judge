@@ -166,6 +166,9 @@ function initializeEventListeners() {
   document
     .getElementById("share-button-complete")
     ?.addEventListener("click", handleExportOrShare);
+  document
+    .getElementById("btn-finish-session")
+    ?.addEventListener("click", goBackToDashboard);
 
   // Confirm Dialog
   document
