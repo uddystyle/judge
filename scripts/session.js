@@ -22,6 +22,11 @@ function startPollingForPrompt() {
 
   if (!state.currentSession) return;
 
+  // ▼▼▼ 変更箇所 ▼▼▼
+  // リロードしても記憶が残るようにsessionStorageから前回のIDを読み込む
+  lastPromptId = sessionStorage.getItem("lastPromptId");
+  // ▲▲▲ 変更箇所 ▲▲▲
+
   pollingInterval = setInterval(async () => {
     try {
       const response = await fetch(
@@ -31,21 +36,16 @@ function startPollingForPrompt() {
 
       const prompt = await response.json();
 
-      if (prompt && prompt.id !== lastPromptId) {
+      if (prompt && prompt.id != lastPromptId) {
+        // != を使用して型変換を許容
+        // ▼▼▼ 変更箇所 ▼▼▼
         lastPromptId = prompt.id;
-
-        if (prompt.status === "canceled") {
-          stopPolling();
-          alert("主任検定員が採点を中断しました。準備画面に戻ります。");
-          setHeaderText("準備中…");
-          showScreen("judge-wait-screen");
-          startPollingForPrompt();
-          return;
-        }
-
-        // ▼▼▼ 変更箇所：ここではポーリングを停止しない ▼▼▼
-        // stopPolling();
+        sessionStorage.setItem("lastPromptId", lastPromptId); // 処理済みのIDを記録
         // ▲▲▲ 変更箇所 ▲▲▲
+
+        stopPolling();
+
+        console.log("新しい採点プロンプトを受信:", prompt);
 
         state.currentScore = "";
         state.confirmedScore = 0;
@@ -264,7 +264,11 @@ export async function handleJoinSession() {
 
 async function selectSession(session) {
   stopPolling();
+  // ▼▼▼ 変更箇所 ▼▼▼
+  // 新しいセッションを選択する際は、前回の記録をクリアする
+  sessionStorage.removeItem("lastPromptId");
   lastPromptId = null;
+  // ▲▲▲ 変更箇所 ▲▲▲
 
   setLoading(true);
   try {
@@ -489,9 +493,7 @@ export function confirmScore() {
 }
 
 export async function submitEntry() {
-  // ▼▼▼ 変更箇所 ▼▼▼
-  stopPolling(); // 得点を送信したら、この選手に対する監視は終了
-  // ▲▲▲ 変更箇所 ▲▲▲
+  stopPolling();
   const submitStatus = document.getElementById("submit-status");
   if (!submitStatus) return;
   submitStatus.innerHTML =
@@ -588,6 +590,10 @@ export function executeConfirm() {
 
 export function goBackToDashboard() {
   stopPolling();
+  // ▼▼▼ 変更箇所 ▼▼▼
+  sessionStorage.removeItem("lastPromptId");
+  lastPromptId = null;
+  // ▲▲▲ 変更箇所 ▲▲▲
   state.selectedEvent = "";
   state.currentBib = "";
   updateInfoDisplay();
