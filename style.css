@@ -312,7 +312,7 @@ body {
     .container {
         max-width: 800px;
         margin: 0 auto;
-        box-shadow: 0 0 40px rgba(0,0,0,0.05); /* PC表示で影をつける */
+        box-shadow: 0 0 40px rgba(0,0,0,0.05);
     }
     .hero-section h1 {
         font-size: 40px;
