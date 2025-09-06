@@ -31,16 +31,18 @@ module.exports = async (req, res) => {
 
     if (sessionError) throw sessionError;
     if (session.chief_judge_id !== user.id) {
-      return res.status(403).json({
-        error: "この操作を行う権限がありません（主任検定員ではありません）。",
-      });
+      return res
+        .status(403)
+        .json({
+          error: "この操作を行う権限がありません（主任検定員ではありません）。",
+        });
     }
 
     // 手順1: scoring_promptsに新しい指示を書き込む
     const { data: newPrompt, error: insertError } = await supabaseAdmin
       .from("scoring_prompts")
       .insert(promptData)
-      .select()
+      .select("id")
       .single();
 
     if (insertError) throw insertError;

@@ -2,7 +2,7 @@
     "dependencies": {
         "@supabase/supabase-js": "^2.0.0",
         "supabase": "^2.34.3",
-        "vercel": "^46.1.1",
+        "vercel": "^47.0.5",
         "xlsx": "^0.18.5"
     },
     "devDependencies": {

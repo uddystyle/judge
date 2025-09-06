@@ -1,4 +1,3 @@
-// scripts/session.js
 import { supabase } from "./supabase.js";
 import { state } from "./state.js";
 import {
@@ -34,14 +33,12 @@ function startPollingForPrompt() {
 
       const prompt = await response.json();
 
-      // APIが新しいプロンプトを返した場合のみ処理を実行する
       if (prompt) {
         lastPromptId = prompt.id;
         sessionStorage.setItem(storageKey, lastPromptId);
 
-        stopPolling();
-
         if (prompt.status === "canceled") {
+          stopPolling();
           alert("主任検定員が採点を中断しました。準備画面に戻ります。");
           setHeaderText("準備中…");
           showScreen("judge-wait-screen");
@@ -59,6 +56,10 @@ function startPollingForPrompt() {
 
         updateInfoDisplay();
         document.getElementById("score-display").textContent = "0";
+
+        // ▼▼▼ 変更箇所：不要な行を削除 ▼▼▼
+        // document.getElementById("score-screen-bib").textContent = state.currentBib;
+        // ▲▲▲ 変更箇所 ▲▲▲
 
         updateScoreScreenButtons();
 
@@ -266,11 +267,8 @@ export async function handleJoinSession() {
 
 async function selectSession(session) {
   stopPolling();
-  // ▼▼▼ 変更箇所：どのセッションの記録も一旦リセットする ▼▼▼
-  // この時点ではセッションIDが不明なため、キーを特定できないので何もしない。
-  // lastPromptIdはポーリング開始時に読み込まれるのでここではリセット不要。
+  sessionStorage.removeItem(`lastPromptId_${session.id}`);
   lastPromptId = null;
-  // ▲▲▲ 変更箇所 ▲▲▲
 
   setLoading(true);
   try {
@@ -296,8 +294,6 @@ async function selectSession(session) {
 
     if (state.currentSession.is_multi_judge) {
       if (state.currentUser.id === state.currentSession.chief_judge_id) {
-        // 主任の場合は、このセッションの記録をクリアしておく
-        sessionStorage.removeItem(`lastPromptId_${state.currentSession.id}`);
         setupDisciplineScreen();
         setHeaderText("種別を選択してください (主任)");
         showScreen("discipline-screen");

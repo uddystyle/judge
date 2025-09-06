@@ -1,4 +1,3 @@
-// scripts/ui.js （完全版）
 import { state } from "./state.js";
 
 export function updateScoreScreenButtons() {
