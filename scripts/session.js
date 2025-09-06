@@ -17,23 +17,75 @@ let pollingInterval = null;
 let scorePollingInterval = null;
 let lastPromptId = null;
 
+export async function handleFinishSession() {
+  if (!state.currentSession) return goBackToDashboard();
+
+  if (state.currentUser.id !== state.currentSession.chief_judge_id) {
+    return goBackToDashboard();
+  }
+
+  showConfirmDialog(
+    "この検定を終了しますか？他の検定員も検定選択画面に戻ります。",
+    async () => {
+      setLoading(true);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) throw new Error("ログインしていません。");
+
+        await fetch("/api/endSession", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userToken: session.access_token,
+            sessionId: state.currentSession.id,
+          }),
+        });
+
+        goBackToDashboard();
+      } catch (error) {
+        alert("検定の終了に失敗しました: " + error.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+  );
+}
+
 function startPollingForPrompt() {
   stopPolling();
   if (!state.currentSession) return;
   const storageKey = `lastPromptId_${state.currentSession.id}`;
-  lastPromptId = sessionStorage.getItem(storageKey);
-  pollingInterval = setInterval(async () => {
+
+  const checkForPrompt = async () => {
+    if (!state.currentSession) {
+      stopPolling();
+      return;
+    }
+    const currentLastPromptId = sessionStorage.getItem(storageKey) || null;
     try {
       const response = await fetch(
-        `/api/getScoringPrompt?sessionId=${state.currentSession.id}&lastSeenId=${lastPromptId}`
+        `/api/getScoringPrompt?sessionId=${state.currentSession.id}&lastSeenId=${currentLastPromptId}`
       );
       if (!response.ok) return;
-      const prompt = await response.json();
+
+      const data = await response.json();
+
+      if (data.is_active === false) {
+        stopPolling();
+        alert("主任検定員が検定を終了しました。");
+        goBackToDashboard();
+        return;
+      }
+
+      const prompt = data.prompt;
       if (prompt) {
+        stopPolling();
+        sessionStorage.setItem(storageKey, prompt.id);
         lastPromptId = prompt.id;
-        sessionStorage.setItem(storageKey, lastPromptId);
+
         if (prompt.status === "canceled") {
-          stopPolling();
           alert("主任検定員が採点を中断しました。準備画面に戻ります。");
           setHeaderText("準備中…");
           showScreen("judge-wait-screen");
@@ -55,7 +107,9 @@ function startPollingForPrompt() {
     } catch (error) {
       console.error("Polling error:", error);
     }
-  }, 1000);
+  };
+
+  pollingInterval = setInterval(checkForPrompt, 2000);
 }
 
 function stopPolling() {
@@ -65,20 +119,34 @@ function stopPolling() {
   }
 }
 
-// ▼▼▼ この2つの関数を追加 ▼▼▼
 function startPollingForScores() {
   stopScorePolling();
   if (!state.currentSession) return;
-  scorePollingInterval = setInterval(async () => {
+  const storageKey = `lastPromptId_${state.currentSession.id}`;
+
+  const checkForScores = async () => {
+    if (!state.currentSession) {
+      stopScorePolling();
+      return;
+    }
     try {
       const { id } = state.currentSession;
       const { currentBib, selectedDiscipline, selectedLevel, selectedEvent } =
         state;
+
       const url = `/api/getScoreStatus?sessionId=${id}&bib=${currentBib}&discipline=${selectedDiscipline}&level=${selectedLevel}&event=${selectedEvent}`;
       const response = await fetch(url);
       if (!response.ok) return;
 
       const status = await response.json();
+
+      if (status.is_active === false) {
+        stopScorePolling();
+        alert("主任検定員が検定を終了しました。");
+        goBackToDashboard();
+        return;
+      }
+
       const scoreListEl = document.getElementById("score-list");
       if (!scoreListEl) return;
 
@@ -101,8 +169,9 @@ function startPollingForScores() {
         submitBtn.style.display = "none";
       }
 
+      const currentLastPromptId = sessionStorage.getItem(storageKey);
       if (state.currentUser.id !== state.currentSession.chief_judge_id) {
-        if (status.activePromptId != lastPromptId) {
+        if (status.activePromptId != currentLastPromptId) {
           stopScorePolling();
           setHeaderText("準備中…");
           showScreen("judge-wait-screen");
@@ -111,9 +180,12 @@ function startPollingForScores() {
       }
     } catch (error) {
       console.error("Score polling error:", error);
-      stopScorePolling(); // エラー発生時も停止
+      stopScorePolling();
     }
-  }, 3000);
+  };
+
+  checkForScores();
+  scorePollingInterval = setInterval(checkForScores, 3000);
 }
 
 function stopScorePolling() {
@@ -122,7 +194,6 @@ function stopScorePolling() {
     scorePollingInterval = null;
   }
 }
-// ▲▲▲ この2つの関数を追加 ▲▲▲
 
 async function broadcastCancellationSignal() {
   if (
@@ -322,6 +393,60 @@ async function selectSession(session) {
 
     state.currentSession = fullSessionData;
     updateInfoDisplay();
+
+    if (
+      state.currentSession.is_active === false &&
+      state.currentUser.id !== state.currentSession.chief_judge_id
+    ) {
+      alert("この検定は終了しています。");
+      setLoading(false);
+      loadDashboard();
+      return;
+    }
+
+    if (state.currentUser.id === state.currentSession.chief_judge_id) {
+      if (state.currentSession.is_active === false) {
+        try {
+          const {
+            data: { session: userSession },
+          } = await supabase.auth.getSession();
+          if (userSession) {
+            await fetch("/api/reactivateSession", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userToken: userSession.access_token,
+                sessionId: state.currentSession.id,
+              }),
+            });
+            state.currentSession.is_active = true;
+          }
+        } catch (e) {
+          console.error("検定の再開に失敗しました:", e);
+          alert("検定の再開に失敗しました。");
+          setLoading(false);
+          return;
+        }
+      } else {
+        try {
+          const {
+            data: { session: userSession },
+          } = await supabase.auth.getSession();
+          if (userSession) {
+            await fetch("/api/clearActivePrompt", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userToken: userSession.access_token,
+                sessionId: state.currentSession.id,
+              }),
+            });
+          }
+        } catch (e) {
+          console.error("古い採点指示のクリアに失敗しました:", e);
+        }
+      }
+    }
 
     const { data: events, error } = await supabase.from("events").select("*");
     if (error) throw error;
@@ -528,12 +653,10 @@ export async function confirmScore() {
 
   state.confirmedScore = score;
 
-  // 単独審判モードの場合は、ここで採点結果を送信して完了画面へ
   if (!state.currentSession.is_multi_judge) {
-    return await submitEntry(); // 単独モードでは送信まで行う
+    return await submitEntry();
   }
 
-  // 複数審判モードの場合は、まず自分の得点だけを送信し、確認画面へ
   setLoading(true);
   try {
     const {
@@ -543,7 +666,6 @@ export async function confirmScore() {
     const judgeName =
       document.getElementById("user-info")?.textContent || "不明な検定員";
 
-    // upsertを使用して個別のスコアを送信
     const { error } = await supabase.from("results").upsert(
       {
         session_id: state.currentSession.id,
@@ -565,7 +687,7 @@ export async function confirmScore() {
     document.getElementById("final-bib").textContent = state.currentBib;
     setHeaderText("採点内容を確認してください");
     showScreen("submit-screen");
-    startPollingForScores(); // 全員の得点状況の監視を開始
+    startPollingForScores();
   } catch (error) {
     alert("得点の送信に失敗しました: " + error.message);
   } finally {
@@ -574,15 +696,14 @@ export async function confirmScore() {
 }
 
 export async function submitEntry() {
-  // この関数は、単独審判モードか、主任が確認画面で「送信」を押したときに呼び出される
+  stopPolling();
   stopScorePolling();
-  const submitStatus = document.getElementById("submit-status");
-  if (submitStatus)
-    submitStatus.innerHTML =
-      '<div class="status"><div class="loading"></div> 送信中...</div>';
 
-  // 単独審判モードの場合のスコア送信ロジック (複数審判ではスコアは既に送信済み)
   if (!state.currentSession.is_multi_judge) {
+    const submitStatus = document.getElementById("submit-status");
+    if (submitStatus)
+      submitStatus.innerHTML =
+        '<div class="status"><div class="loading"></div> 送信中...</div>';
     try {
       const {
         data: { session },
@@ -613,19 +734,11 @@ export async function submitEntry() {
     return;
   }
 
-  // 複数審判モードで主任が「送信」した場合
-  if (
-    state.currentSession.is_multi_judge &&
-    state.currentUser.id === state.currentSession.chief_judge_id
-  ) {
-    // 全員のスコアが揃っているかなどの最終チェックはここで行うことも可能
-
-    // 主任のみ完了画面へ
+  if (state.currentUser.id === state.currentSession.chief_judge_id) {
     const completedBib = document.getElementById("completed-bib");
     if (completedBib) completedBib.textContent = state.currentBib;
     const completedScore = document.getElementById("completed-score");
-    if (completedScore) completedScore.textContent = ""; // 総合点はここでは表示しない
-
+    if (completedScore) completedScore.textContent = "";
     setHeaderText("送信完了しました");
     showScreen("complete-screen");
   }
@@ -640,38 +753,57 @@ function onSubmitSuccess(result) {
   showScreen("complete-screen");
 }
 
-export function nextSkier() {
+export async function nextSkier() {
   document.getElementById("submit-status").innerHTML = "";
   if (
     state.currentSession.is_multi_judge &&
     state.currentUser.id === state.currentSession.chief_judge_id
   ) {
-    startNewEntry();
-  } else if (state.currentSession.is_multi_judge) {
-    state.currentBib = "";
-    updateInfoDisplay();
-    setHeaderText("準備中…");
-    showScreen("judge-wait-screen");
-    startPollingForPrompt();
+    setLoading(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("ログインしていません。");
+      await fetch("/api/clearActivePrompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userToken: session.access_token,
+          sessionId: state.currentSession.id,
+        }),
+      });
+      sessionStorage.removeItem(`lastPromptId_${state.currentSession.id}`);
+      lastPromptId = null;
+      startNewEntry();
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setLoading(false);
+    }
   } else {
     startNewEntry();
   }
 }
 
 export function changeEvent() {
+  stopPolling();
   stopScorePolling();
   showConfirmDialog("現在の採点を中断し、種目選択に戻りますか？", async () => {
     const broadcastSuccess = await broadcastCancellationSignal();
     if (!broadcastSuccess) return;
+
     const isChief =
       state.currentSession.is_multi_judge &&
       state.currentUser.id === state.currentSession.chief_judge_id;
     const isSingleMode = !state.currentSession.is_multi_judge;
+
     state.selectedDiscipline = "";
     state.selectedLevel = "";
     state.selectedEvent = "";
     state.currentBib = "";
     updateInfoDisplay();
+
     if (isChief || isSingleMode) {
       setHeaderText("種別を選択してください");
       showScreen("discipline-screen");
@@ -722,9 +854,31 @@ export function goBackToLevelSelect() {
 }
 
 export async function goBackToBibScreen() {
+  stopPolling();
   stopScorePolling();
-  const broadcastSuccess = await broadcastCancellationSignal();
-  if (!broadcastSuccess) return;
+
+  if (state.currentUser.id === state.currentSession.chief_judge_id) {
+    setLoading(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("ログインしていません。");
+
+      await fetch("/api/clearActivePrompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userToken: session.access_token,
+          sessionId: state.currentSession.id,
+        }),
+      });
+    } catch (error) {
+      alert("採点の中断に失敗しました: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   setHeaderText("ゼッケン番号を修正してください");
   showScreen("bib-screen");
