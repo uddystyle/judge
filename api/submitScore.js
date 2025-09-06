@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
 
     if (
       !bib ||
-      !score ||
+      score === undefined || // score can be 0, so check for undefined
       !judge ||
       !discipline ||
       !event ||
@@ -41,10 +41,9 @@ module.exports = async (req, res) => {
 
     const { data, error } = await supabase
       .from("results")
-      .insert([
+      .upsert(
         {
           session_id: sessionId,
-          created_at: new Date().toISOString(),
           bib: bib,
           score: score,
           judge_name: judge,
@@ -52,7 +51,11 @@ module.exports = async (req, res) => {
           level: level,
           event_name: event,
         },
-      ])
+        {
+          onConflict:
+            "session_id, bib, discipline, level, event_name, judge_name",
+        }
+      )
       .select()
       .single();
 

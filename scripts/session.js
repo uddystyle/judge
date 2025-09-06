@@ -65,6 +65,7 @@ function stopPolling() {
   }
 }
 
+// ▼▼▼ この2つの関数を追加 ▼▼▼
 function startPollingForScores() {
   stopScorePolling();
   if (!state.currentSession) return;
@@ -110,6 +111,7 @@ function startPollingForScores() {
       }
     } catch (error) {
       console.error("Score polling error:", error);
+      stopScorePolling(); // エラー発生時も停止
     }
   }, 3000);
 }
@@ -120,6 +122,7 @@ function stopScorePolling() {
     scorePollingInterval = null;
   }
 }
+// ▲▲▲ この2つの関数を追加 ▲▲▲
 
 async function broadcastCancellationSignal() {
   if (
@@ -525,6 +528,12 @@ export async function confirmScore() {
 
   state.confirmedScore = score;
 
+  // 単独審判モードの場合は、ここで採点結果を送信して完了画面へ
+  if (!state.currentSession.is_multi_judge) {
+    return await submitEntry(); // 単独モードでは送信まで行う
+  }
+
+  // 複数審判モードの場合は、まず自分の得点だけを送信し、確認画面へ
   setLoading(true);
   try {
     const {
@@ -534,34 +543,29 @@ export async function confirmScore() {
     const judgeName =
       document.getElementById("user-info")?.textContent || "不明な検定員";
 
-    const response = await fetch("/api/submitScore", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sessionId: state.currentSession.id,
+    // upsertを使用して個別のスコアを送信
+    const { error } = await supabase.from("results").upsert(
+      {
+        session_id: state.currentSession.id,
         bib: parseInt(state.currentBib),
         score: state.confirmedScore,
-        judge: judgeName,
+        judge_name: judgeName,
         discipline: state.selectedDiscipline,
         level: state.selectedLevel,
-        event: state.selectedEvent,
-        userToken: session.access_token,
-      }),
-    });
-    if (!response.ok) {
-      const result = await response.json();
-      throw new Error(result.error);
-    }
+        event_name: state.selectedEvent,
+      },
+      {
+        onConflict:
+          "session_id, bib, discipline, level, event_name, judge_name",
+      }
+    );
 
-    if (state.currentSession.is_multi_judge) {
-      document.getElementById("final-bib").textContent = state.currentBib;
-      setHeaderText("採点内容を確認してください");
-      showScreen("submit-screen");
-      startPollingForScores();
-    } else {
-      const result = await response.json();
-      onSubmitSuccess(result);
-    }
+    if (error) throw error;
+
+    document.getElementById("final-bib").textContent = state.currentBib;
+    setHeaderText("採点内容を確認してください");
+    showScreen("submit-screen");
+    startPollingForScores(); // 全員の得点状況の監視を開始
   } catch (error) {
     alert("得点の送信に失敗しました: " + error.message);
   } finally {
@@ -570,11 +574,61 @@ export async function confirmScore() {
 }
 
 export async function submitEntry() {
+  // この関数は、単独審判モードか、主任が確認画面で「送信」を押したときに呼び出される
   stopScorePolling();
-  // 主任が次の採点指示を出す
-  const bib = parseInt(state.currentBib, 10) + 1; // 仮で次のゼッケンへ
-  state.currentBib = String(bib);
-  await confirmBib();
+  const submitStatus = document.getElementById("submit-status");
+  if (submitStatus)
+    submitStatus.innerHTML =
+      '<div class="status"><div class="loading"></div> 送信中...</div>';
+
+  // 単独審判モードの場合のスコア送信ロジック (複数審判ではスコアは既に送信済み)
+  if (!state.currentSession.is_multi_judge) {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("ログインしていません。");
+      const judgeName =
+        document.getElementById("user-info")?.textContent || "不明な検定員";
+      const response = await fetch("/api/submitScore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: state.currentSession.id,
+          bib: parseInt(state.currentBib),
+          score: state.confirmedScore,
+          judge: judgeName,
+          discipline: state.selectedDiscipline,
+          level: state.selectedLevel,
+          event: state.selectedEvent,
+          userToken: session.access_token,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      onSubmitSuccess(result);
+    } catch (error) {
+      onSubmitError(error);
+    }
+    return;
+  }
+
+  // 複数審判モードで主任が「送信」した場合
+  if (
+    state.currentSession.is_multi_judge &&
+    state.currentUser.id === state.currentSession.chief_judge_id
+  ) {
+    // 全員のスコアが揃っているかなどの最終チェックはここで行うことも可能
+
+    // 主任のみ完了画面へ
+    const completedBib = document.getElementById("completed-bib");
+    if (completedBib) completedBib.textContent = state.currentBib;
+    const completedScore = document.getElementById("completed-score");
+    if (completedScore) completedScore.textContent = ""; // 総合点はここでは表示しない
+
+    setHeaderText("送信完了しました");
+    showScreen("complete-screen");
+  }
 }
 
 function onSubmitSuccess(result) {
@@ -609,18 +663,15 @@ export function changeEvent() {
   showConfirmDialog("現在の採点を中断し、種目選択に戻りますか？", async () => {
     const broadcastSuccess = await broadcastCancellationSignal();
     if (!broadcastSuccess) return;
-
     const isChief =
       state.currentSession.is_multi_judge &&
       state.currentUser.id === state.currentSession.chief_judge_id;
     const isSingleMode = !state.currentSession.is_multi_judge;
-
     state.selectedDiscipline = "";
     state.selectedLevel = "";
     state.selectedEvent = "";
     state.currentBib = "";
     updateInfoDisplay();
-
     if (isChief || isSingleMode) {
       setHeaderText("種別を選択してください");
       showScreen("discipline-screen");
@@ -671,6 +722,7 @@ export function goBackToLevelSelect() {
 }
 
 export async function goBackToBibScreen() {
+  stopScorePolling();
   const broadcastSuccess = await broadcastCancellationSignal();
   if (!broadcastSuccess) return;
 
