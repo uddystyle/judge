@@ -55,7 +55,7 @@ function startPollingForPrompt() {
     } catch (error) {
       console.error("Polling error:", error);
     }
-  }, 3000);
+  }, 1000);
 }
 
 function stopPolling() {
