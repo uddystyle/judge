@@ -451,3 +451,17 @@ body {
     color: var(--secondary-text);
     cursor: default;
 }
+
+#score-list .participant-item {
+    padding: 14px 4px;
+}
+#score-list .participant-name {
+    flex-grow: 1;
+}
+#score-list .score-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ios-blue);
+    min-width: 50px;
+    text-align: right;
+}

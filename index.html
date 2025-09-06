@@ -149,14 +149,20 @@
 
         <div class="screen" id="submit-screen">
             <div class="instruction">採点内容の確認</div>
-            <div class="status" style="text-align: left; max-width: 320px; margin: 20px auto; padding: 20px;">
-                <p style="margin-bottom: 10px;"><strong>ゼッケン番号:</strong> <span id="final-bib"></span>番</p>
-                <p><strong>得点:</strong> <span id="final-score"></span>点</p>
+
+            <div id="score-list-container" class="form-container">
+                <div class="current-bib-display" style="margin-bottom: 20px;">
+                    採点対象: <span id="final-bib">---</span>番
+                </div>
+                <h3 class="settings-title" style="font-size: 17px; margin-bottom: 8px;">各検定員の得点</h3>
+                <div id="score-list" class="participants-container">
+                    <div class="loading"></div>
+                </div>
             </div>
             <div id="submit-status"></div>
             <div class="nav-buttons">
                 <button class="nav-btn" id="btn-edit-entry">修正する</button>
-                <button class="nav-btn primary" id="btn-submit-entry">送信する</button>
+                <button class="nav-btn primary" id="btn-submit-entry" style="display: none;">送信する</button>
             </div>
         </div>
 
