@@ -828,15 +828,43 @@ export function executeConfirm() {
   state.onConfirmAction = null;
 }
 
-export function goBackToDashboard() {
+export async function goBackToDashboard() {
   stopPolling();
   stopScorePolling();
+
+  if (
+    state.currentSession &&
+    state.currentUser?.id === state.currentSession.chief_judge_id
+  ) {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        // クリア用のAPIを呼び出す
+        await fetch("/api/clearActivePrompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userToken: session.access_token,
+            sessionId: state.currentSession.id,
+          }),
+        });
+      }
+    } catch (error) {
+      // ここでのエラーはユーザー操作をブロックしないように、コンソールへの出力に留める
+      console.error("アクティブな採点指示のクリアに失敗しました:", error);
+    }
+  }
+
   if (state.currentSession) {
     sessionStorage.removeItem(`lastPromptId_${state.currentSession.id}`);
   }
   lastPromptId = null;
   state.selectedEvent = "";
   state.currentBib = "";
+  // currentSessionをnullにリセットして、ヘッダー表示を「未選択」に戻す
+  state.currentSession = null;
   updateInfoDisplay();
   setHeaderText("検定を選択");
   showScreen("dashboard-screen");
