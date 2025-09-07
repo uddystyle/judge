@@ -50,7 +50,7 @@ export async function handleFinishSession() {
           throw new Error(result.error || "検定の終了に失敗しました。");
 
         // 成功したら自分もダッシュボードに戻る
-        goBackToDashboard();
+        await goBackToDashboard();
       } catch (error) {
         alert("検定の終了に失敗しました: " + error.message);
       } finally {
