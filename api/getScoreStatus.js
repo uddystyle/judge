@@ -27,10 +27,10 @@ module.exports = async (req, res) => {
 
     if (scoresError) throw scoresError;
 
-    // 2. 現在の検定の進行状況を取得
+    // 2. 現在の検定の進行状況とアクティブ状態を取得
     const { data: sessionData, error: sessionError } = await supabase
       .from("sessions")
-      .select("active_prompt_id")
+      .select("active_prompt_id, is_active") // is_active を追加
       .eq("id", sessionId)
       .single();
 
@@ -40,6 +40,7 @@ module.exports = async (req, res) => {
     res.status(200).json({
       scores: scores,
       activePromptId: sessionData.active_prompt_id,
+      is_active: sessionData.is_active, // 応答に is_active を追加
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -37,10 +37,9 @@ module.exports = async (req, res) => {
       });
     }
 
-    // sessionsテーブルのis_activeをfalseに更新
     const { error: updateError } = await supabaseAdmin
       .from("sessions")
-      .update({ is_active: false })
+      .update({ is_active: false, active_prompt_id: null })
       .eq("id", sessionId);
 
     if (updateError) throw updateError;

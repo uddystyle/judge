@@ -35,6 +35,7 @@ import {
   showDeleteSessionConfirm,
   handleDeleteSession,
   appointChief,
+  handleFinishSession,
 } from "./session.js";
 import {
   showScreen,
@@ -168,7 +169,7 @@ function initializeEventListeners() {
     ?.addEventListener("click", handleExportOrShare);
   document
     .getElementById("btn-finish-session")
-    ?.addEventListener("click", goBackToDashboard);
+    ?.addEventListener("click", handleFinishSession);
 
   // Confirm Dialog
   document

@@ -24,6 +24,7 @@ export async function handleFinishSession() {
     return goBackToDashboard();
   }
 
+  // 主任検定員の場合は、確認ダイアログを表示
   showConfirmDialog(
     "この検定を終了しますか？他の検定員も検定選択画面に戻ります。",
     async () => {
@@ -34,7 +35,8 @@ export async function handleFinishSession() {
         } = await supabase.auth.getSession();
         if (!session) throw new Error("ログインしていません。");
 
-        await fetch("/api/endSession", {
+        // バックエンドAPIを呼び出して検定を終了させる
+        const response = await fetch("/api/endSession", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -43,6 +45,11 @@ export async function handleFinishSession() {
           }),
         });
 
+        const result = await response.json();
+        if (!response.ok)
+          throw new Error(result.error || "検定の終了に失敗しました。");
+
+        // 成功したら自分もダッシュボードに戻る
         goBackToDashboard();
       } catch (error) {
         alert("検定の終了に失敗しました: " + error.message);
