@@ -173,15 +173,43 @@ function startPollingForScores() {
           scoreListEl.appendChild(itemEl);
         });
       } else {
-        scoreListEl.innerHTML = '<div class="loading"></div>';
+        scoreListEl.innerHTML =
+          '<p style="padding: 12px 0;">まだ採点されていません。</p>';
       }
 
+      // ▼▼▼ ここからが変更箇所です ▼▼▼
       const submitBtn = document.getElementById("btn-submit-entry");
+      const submitStatusEl = document.getElementById("submit-status");
+
+      // 自分が主任検定員の場合のみ、ボタンの制御を行う
       if (state.currentUser.id === state.currentSession.chief_judge_id) {
         submitBtn.style.display = "block";
+
+        const scoreCount = status.scores ? status.scores.length : 0;
+        const requiredCount = status.required_judges || 1;
+
+        // 現在の採点人数を表示
+        if (submitStatusEl) {
+          submitStatusEl.innerHTML = `<div class="status" style="margin-top:20px;">現在の採点者数: <b>${scoreCount} / ${requiredCount} 人</b></div>`;
+        }
+
+        // 採点人数が必須人数に達しているかチェック
+        if (scoreCount >= requiredCount) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "この内容で送信する";
+        } else {
+          submitBtn.disabled = true;
+          submitBtn.textContent = `(${requiredCount}人の採点が必要です)`;
+        }
       } else {
+        // 主任以外はボタンを非表示にし、ステータス表示のみ行う
         submitBtn.style.display = "none";
+        if (submitStatusEl) {
+          submitStatusEl.innerHTML =
+            '<p style="color: var(--secondary-text); margin-top: 20px;">主任検定員が内容を確認中です...</p>';
+        }
       }
+      // ▲▲▲ ここまでが変更箇所です ▲▲▲
 
       const currentLastPromptId = sessionStorage.getItem(storageKey);
       if (state.currentUser.id !== state.currentSession.chief_judge_id) {

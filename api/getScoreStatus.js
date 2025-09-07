@@ -1,4 +1,5 @@
-// api/getScoreStatus.js
+// api/getScoreStatus.js をこのコードに置き換えてください
+
 const { createClient } = require("@supabase/supabase-js");
 
 module.exports = async (req, res) => {
@@ -27,10 +28,10 @@ module.exports = async (req, res) => {
 
     if (scoresError) throw scoresError;
 
-    // 2. 現在の検定の進行状況とアクティブ状態を取得
+    // 2. 現在の検定の進行状況と設定を取得
     const { data: sessionData, error: sessionError } = await supabase
       .from("sessions")
-      .select("active_prompt_id, is_active") // is_active を追加
+      .select("active_prompt_id, is_active, required_judges")
       .eq("id", sessionId)
       .single();
 
@@ -40,7 +41,8 @@ module.exports = async (req, res) => {
     res.status(200).json({
       scores: scores,
       activePromptId: sessionData.active_prompt_id,
-      is_active: sessionData.is_active, // 応答に is_active を追加
+      is_active: sessionData.is_active,
+      required_judges: sessionData.required_judges,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
