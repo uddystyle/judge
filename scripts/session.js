@@ -948,12 +948,51 @@ export async function goBackToBibScreen() {
   showScreen("bib-screen");
 }
 
-export function editEntry() {
+export async function editEntry() {
   stopScorePolling();
-  state.currentScore = String(state.confirmedScore);
-  document.getElementById("score-display").textContent = state.currentScore;
-  setHeaderText("滑走者の得点を入力してください");
-  showScreen("score-screen");
+  setLoading(true);
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) throw new Error("ログインしていません。");
+
+    const judgeName =
+      document.getElementById("user-info")?.textContent || "不明な検定員";
+
+    // バックエンドの削除APIを呼び出す
+    const response = await fetch("/api/deleteScore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: state.currentSession.id,
+        bib: parseInt(state.currentBib),
+        judge: judgeName,
+        discipline: state.selectedDiscipline,
+        level: state.selectedLevel,
+        event: state.selectedEvent,
+        userToken: session.access_token,
+      }),
+    });
+
+    if (!response.ok) {
+      const result = await response.json();
+      throw new Error(result.error || "採点データのクリアに失敗しました。");
+    }
+
+    // API呼び出しが成功したら、得点入力画面に戻る
+    state.currentScore = String(state.confirmedScore);
+    document.getElementById("score-display").textContent = state.currentScore;
+    setHeaderText("滑走者の得点を入力してください");
+    showScreen("score-screen");
+  } catch (error) {
+    alert("エラーが発生しました: " + error.message);
+    // 失敗した場合は、ポーリングを再開して元の画面に戻る
+    startPollingForScores();
+  } finally {
+    setLoading(false);
+  }
 }
 
 export async function handleExportOrShare() {
