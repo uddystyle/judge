@@ -32,18 +32,18 @@ module.exports = async (req, res) => {
 
     if (sessionError) throw sessionError;
     if (session.chief_judge_id !== user.id) {
-      return res
-        .status(403)
-        .json({
-          error: "この操作を行う権限がありません（主任検定員ではありません）。",
-        });
+      return res.status(403).json({
+        error: "この操作を行う権限がありません（主任検定員ではありません）。",
+      });
     }
 
+    // ▼▼▼ 変更箇所 ▼▼▼
     // セッションを再開し、古い採点指示をクリアする
     const { error: updateError } = await supabaseAdmin
       .from("sessions")
       .update({ is_active: true, active_prompt_id: null })
       .eq("id", sessionId);
+    // ▲▲▲ 変更箇所 ▲▲▲
 
     if (updateError) throw updateError;
 

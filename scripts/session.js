@@ -79,10 +79,17 @@ function startPollingForPrompt() {
 
       const data = await response.json();
 
+      // セッションが非アクティブ（終了済み）の場合の処理
       if (data.is_active === false) {
-        stopPolling();
-        alert("主任検定員が検定を終了しました。");
-        goBackToDashboard();
+        // もし採点が一度でも始まっていた場合（lastPromptIdが記録されている）は、
+        // 主任が検定を終了したと判断し、ダッシュボードに戻す
+        if (lastPromptId) {
+          stopPolling();
+          alert("主任検定員が検定を終了しました。");
+          goBackToDashboard();
+        }
+        // lastPromptIdがまだ無い場合は、単に終了したセッションで待機しているだけなので、
+        // 何もせずポーリングを続ける（主任が再開するのを待つ）
         return;
       }
 
@@ -384,7 +391,7 @@ export async function handleJoinSession() {
   }
 }
 
-async function selectSession(session) {
+export async function selectSession(session) {
   stopPolling();
   stopScorePolling();
   sessionStorage.removeItem(`lastPromptId_${session.id}`);
@@ -401,60 +408,54 @@ async function selectSession(session) {
     state.currentSession = fullSessionData;
     updateInfoDisplay();
 
+    // 主任検定員が終了したセッションに入った場合、確認なしで自動的に再開させる
     if (
       state.currentSession.is_active === false &&
-      state.currentUser.id !== state.currentSession.chief_judge_id
+      state.currentUser.id === state.currentSession.chief_judge_id
     ) {
-      alert("この検定は終了しています。");
-      setLoading(false);
-      loadDashboard();
-      return;
-    }
-
-    if (state.currentUser.id === state.currentSession.chief_judge_id) {
-      if (state.currentSession.is_active === false) {
-        try {
-          const {
-            data: { session: userSession },
-          } = await supabase.auth.getSession();
-          if (userSession) {
-            await fetch("/api/reactivateSession", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userToken: userSession.access_token,
-                sessionId: state.currentSession.id,
-              }),
-            });
-            state.currentSession.is_active = true;
-          }
-        } catch (e) {
-          console.error("検定の再開に失敗しました:", e);
-          alert("検定の再開に失敗しました。");
-          setLoading(false);
-          return;
+      try {
+        const {
+          data: { session: userSession },
+        } = await supabase.auth.getSession();
+        if (userSession) {
+          await fetch("/api/reactivateSession", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userToken: userSession.access_token,
+              sessionId: state.currentSession.id,
+            }),
+          });
+          // ローカルの状態もアクティブに更新
+          state.currentSession.is_active = true;
         }
-      } else {
-        try {
-          const {
-            data: { session: userSession },
-          } = await supabase.auth.getSession();
-          if (userSession) {
-            await fetch("/api/clearActivePrompt", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userToken: userSession.access_token,
-                sessionId: state.currentSession.id,
-              }),
-            });
-          }
-        } catch (e) {
-          console.error("古い採点指示のクリアに失敗しました:", e);
+      } catch (e) {
+        alert("検定の再開に失敗しました: " + e.message);
+        setLoading(false);
+        return;
+      }
+    } else if (state.currentUser.id === state.currentSession.chief_judge_id) {
+      // 主任がアクティブなセッションに入り直した場合は、古い採点指示をクリア
+      try {
+        const {
+          data: { session: userSession },
+        } = await supabase.auth.getSession();
+        if (userSession) {
+          await fetch("/api/clearActivePrompt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userToken: userSession.access_token,
+              sessionId: state.currentSession.id,
+            }),
+          });
         }
+      } catch (e) {
+        console.error("古い採点指示のクリアに失敗しました:", e);
       }
     }
 
+    // --- 種目データ取得と画面遷移の共通ロジック ---
     const { data: events, error } = await supabase.from("events").select("*");
     if (error) throw error;
     state.allTestEvents = {};
