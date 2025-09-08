@@ -41,6 +41,10 @@ module.exports = async (req, res) => {
       .from("session_participants")
       .delete()
       .eq("session_id", sessionId);
+    await supabaseAdmin
+      .from("scoring_prompts")
+      .delete()
+      .eq("session_id", sessionId);
     await supabaseAdmin.from("sessions").delete().eq("id", sessionId);
 
     res.status(200).json({ success: true, message: "検定を削除しました。" });
