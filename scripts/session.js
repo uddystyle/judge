@@ -18,46 +18,56 @@ let scorePollingInterval = null;
 let lastPromptId = null;
 
 export async function handleFinishSession() {
-  if (!state.currentSession) return goBackToDashboard();
-
-  if (state.currentUser.id !== state.currentSession.chief_judge_id) {
+  if (!state.currentSession) {
     return goBackToDashboard();
   }
 
-  // 主任検定員の場合は、確認ダイアログを表示
-  showConfirmDialog(
-    "この検定を終了しますか？他の検定員も検定選択画面に戻ります。",
-    async () => {
-      setLoading(true);
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (!session) throw new Error("ログインしていません。");
-
-        // バックエンドAPIを呼び出して検定を終了させる
-        const response = await fetch("/api/endSession", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userToken: session.access_token,
-            sessionId: state.currentSession.id,
-          }),
-        });
-
-        const result = await response.json();
-        if (!response.ok)
-          throw new Error(result.error || "検定の終了に失敗しました。");
-
-        // 成功したら自分もダッシュボードに戻る
-        await goBackToDashboard();
-      } catch (error) {
-        alert("検定の終了に失敗しました: " + error.message);
-      } finally {
-        setLoading(false);
-      }
+  // 複数検定員モードかどうかで処理を分岐
+  if (state.currentSession.is_multi_judge) {
+    // 【複数検定員モード】全員に対して検定を終了する（従来の処理）
+    // 主任検定員でなければ、単にダッシュボードに戻る
+    if (state.currentUser.id !== state.currentSession.chief_judge_id) {
+      return goBackToDashboard();
     }
-  );
+
+    // 主任検定員の場合は、確認ダイアログを表示
+    showConfirmDialog(
+      "この検定を終了しますか？他の参加者も検定選択画面に戻ります。",
+      async () => {
+        setLoading(true);
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session) throw new Error("ログインしていません。");
+
+          // バックエンドAPIを呼び出して検定を終了させる
+          const response = await fetch("/api/endSession", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userToken: session.access_token,
+              sessionId: state.currentSession.id,
+            }),
+          });
+
+          const result = await response.json();
+          if (!response.ok)
+            throw new Error(result.error || "検定の終了に失敗しました。");
+
+          // 成功したら自分もダッシュボードに戻る
+          await goBackToDashboard();
+        } catch (error) {
+          alert("検定の終了に失敗しました: " + error.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
+  } else {
+    // 【単独検定員モード】自分だけが検定選択画面に戻る
+    goBackToDashboard();
+  }
 }
 
 function startPollingForPrompt() {
