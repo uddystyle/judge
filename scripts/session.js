@@ -95,7 +95,7 @@ function startPollingForPrompt() {
         // 主任が検定を終了したと判断し、ダッシュボードに戻す
         if (lastPromptId) {
           stopPolling();
-          alert("主任検定員が検定を終了しました。");
+          // alert("主任検定員が検定を終了しました。");
           goBackToDashboard();
         }
         // lastPromptIdがまだ無い場合は、単に終了したセッションで待機しているだけなので、
@@ -110,7 +110,7 @@ function startPollingForPrompt() {
         lastPromptId = prompt.id;
 
         if (prompt.status === "canceled") {
-          alert("主任検定員が採点を中断しました。準備画面に戻ります。");
+          // alert("主任検定員が採点を中断しました。準備画面に戻ります。");
           setHeaderText("準備中…");
           showScreen("judge-wait-screen");
           startPollingForPrompt();
@@ -598,6 +598,11 @@ function startNewEntry() {
   const scoreDisplay = document.getElementById("score-display");
   if (scoreDisplay) scoreDisplay.textContent = "0";
 
+  const finalBibEl = document.getElementById("final-bib");
+  if (finalBibEl) finalBibEl.textContent = "---";
+  const scoreListEl = document.getElementById("score-list");
+  if (scoreListEl) scoreListEl.innerHTML = "";
+
   document.getElementById("submit-status").innerHTML = "";
 
   updateInfoDisplay();
@@ -729,6 +734,15 @@ export async function confirmScore() {
     );
 
     if (error) throw error;
+
+    const scoreListEl = document.getElementById("score-list");
+    if (scoreListEl) {
+      scoreListEl.innerHTML = '<div class="loading"></div>';
+    }
+    const finalBibEl = document.getElementById("final-bib");
+    if (finalBibEl) {
+      finalBibEl.textContent = "---";
+    }
 
     document.getElementById("final-bib").textContent = state.currentBib;
     setHeaderText("採点内容を確認してください");
@@ -1086,6 +1100,13 @@ export async function showSessionDetails(session) {
     const requiredJudgesInput = document.getElementById(
       "required-judges-input"
     );
+
+    const participantCount = data.participants ? data.participants.length : 1;
+    requiredJudgesInput.max = participantCount;
+    if (parseInt(requiredJudgesInput.value, 10) > participantCount) {
+        requiredJudgesInput.value = participantCount;
+    }
+
     if (data.is_multi_judge) {
       requiredJudgesContainer.style.display = "flex";
       requiredJudgesInput.value = data.required_judges || 1;

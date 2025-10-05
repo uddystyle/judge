@@ -165,6 +165,9 @@ function initializeEventListeners() {
     .getElementById("btn-next-skier")
     ?.addEventListener("click", nextSkier);
   document
+    .getElementById("btn-complete-change-event")
+    ?.addEventListener("click", changeEvent);
+  document
     .getElementById("share-button-complete")
     ?.addEventListener("click", handleExportOrShare);
   document
